@@ -4,21 +4,22 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Deep space background circle -->
+    <path
+        android:fillColor="#020204"
+        android:pathData="M54,54m-50,0a50,50 0,1 1,100 0a50,50 0,1 1,-100 0"/>
     <!-- Outer cosmic orbital ring -->
     <path
         android:strokeColor="#4CC9F0"
-        android:strokeWidth="2"
-        android:pathData="M54,54m-38,0a38,38 0,1 1,76 0a38,38 0,1 1,-76 0"/>
+        android:strokeWidth="1.5"
+        android:pathData="M54,54m-36,0a36,36 0,1 1,72 0a36,36 0,1 1,-72 0"/>
     <!-- Inner warm stardust ring -->
     <path
         android:strokeColor="#FFD166"
-        android:strokeWidth="1.5"
+        android:strokeWidth="1"
         android:pathData="M54,54m-22,0a22,22 0,1 1,44 0a22,22 0,1 1,-44 0"/>
     <!-- Central luminous core (You) -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,54m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0"/>
-    <path
-        android:fillColor="#4CC9F0"
-        android:pathData="M54,54m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0"/>
+        android:pathData="M54,54m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-10 0"/>
 </vector>

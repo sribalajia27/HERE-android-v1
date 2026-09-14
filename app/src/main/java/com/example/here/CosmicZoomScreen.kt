@@ -537,7 +537,7 @@ fun CosmicZoomScreen() {
                         putExtra(Intent.EXTRA_TITLE, "My scale of the universe")
                         putExtra(
                             Intent.EXTRA_TEXT,
-                            "You're a star, experiencing itself as a human for a little while. Enjoy every small moments.\n\nHERE"
+                            "You're a star, experiencing itself as a human for a little while. Enjoy every small moments.\n\nApeiron"
                         )
                     }
                     context.startActivity(Intent.createChooser(send, "Share your journey"))
