@@ -18,72 +18,72 @@ val COSMIC_LEVELS = listOf(
     CosmicLevel(
         index = 0,
         title = "You",
-        subtitle = "One human life.",
+        subtitle = "The center of your entire universe.",
         exponent = 0,
-        sizeFact = "~1.7 metres tall"
+        sizeFact = "1.7 meters of stardust"
     ),
     CosmicLevel(
         index = 1,
-        title = "Your world",
-        subtitle = "Everything you can reach in a day.",
+        title = "Your World",
+        subtitle = "Your entire existence, cradled in blue.",
         exponent = 4,
-        sizeFact = null
+        sizeFact = "Your daily horizon"
     ),
     CosmicLevel(
         index = 2,
         title = "Earth",
-        subtitle = "One planet. 8 billion+ lives.",
+        subtitle = "A pale blue speck suspended in a sunbeam.",
         exponent = 7,
-        sizeFact = "12,742 km across"
+        sizeFact = "Sunlight takes 8 min 20 s to arrive"
     ),
     CosmicLevel(
         index = 3,
         title = "The Moon",
-        subtitle = "Our nearest world beyond Earth.",
+        subtitle = "Our silent neighbor, watching over our brief history.",
         exponent = 9,
-        sizeFact = "384,400 km away"
+        sizeFact = "384,400 km away · Light takes 1.3 s"
     ),
     CosmicLevel(
         index = 4,
         title = "The Sun",
-        subtitle = "The star that holds our days together.",
+        subtitle = "A raging nuclear furnace fueling every breath you take.",
         exponent = 9,
         sizeFact = "1.39 million km across"
     ),
     CosmicLevel(
         index = 5,
         title = "Our Solar System",
-        subtitle = "Eight planets, one star.",
+        subtitle = "8 worlds dancing in the void. V1 & V2 blink back from the dark.",
         exponent = 13,
-        sizeFact = "~9 billion km across"
+        sizeFact = "Voyager 1 & 2: 23 light-hours deep in interstellar space"
     ),
     CosmicLevel(
         index = 6,
         title = "The Milky Way",
-        subtitle = "Hundreds of billions of stars.",
+        subtitle = "400 billion stars. You are invisible from here.",
         exponent = 21,
-        sizeFact = "~100,000 light-years across"
+        sizeFact = "100,000 light-years across"
     ),
     CosmicLevel(
         index = 7,
-        title = "Our galactic neighborhood",
-        subtitle = "The Local Group of galaxies.",
+        title = "Our Galactic Neighborhood",
+        subtitle = "A tiny cluster of island universes drifting in nothingness.",
         exponent = 23,
-        sizeFact = "~10 million light-years across"
+        sizeFact = "10 million light-years across"
     ),
     CosmicLevel(
         index = 8,
-        title = "The cosmic web",
-        subtitle = "Galaxies form filaments, not scatter randomly.",
+        title = "The Cosmic Web",
+        subtitle = "Galaxies strung together like fragile glowing webs.",
         exponent = 25,
-        sizeFact = "~1 billion light-years across"
+        sizeFact = "1 billion light-years across"
     ),
     CosmicLevel(
         index = 9,
-        title = "The observable universe",
-        subtitle = "Everything visible to us. No further to go.",
+        title = "The Observable Universe",
+        subtitle = "~2 trillion galaxies (conservative estimate). Beyond lies the incomprehensible.",
         exponent = 27,
-        sizeFact = "~93 billion light-years across"
+        sizeFact = "We only see what light has reached. Beyond, realms exist beyond human comprehension."
     )
 )
 

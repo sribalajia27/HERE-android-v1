@@ -1,6 +1,8 @@
 package com.example.here
 
 import android.content.Intent
+import android.media.AudioManager
+import android.media.ToneGenerator
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
@@ -48,8 +50,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
 
-private enum class Phase { INTRO, JOURNEY, ARRIVED, SEEKING_EARTH, EARTH_FOUND, RETURNING, FINAL }
+private enum class Phase { INTRO, JOURNEY, ARRIVED, BEYOND, SEEKING_EARTH, EARTH_FOUND, RETURNING, FINAL }
 
 // --- TUNING KNOBS ---
 private const val DRAG_SENSITIVITY = 1f / 280f
@@ -77,10 +80,27 @@ fun CosmicZoomScreen() {
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
 
-    val inputLocked = phase == Phase.EARTH_FOUND || phase == Phase.RETURNING || phase == Phase.FINAL
+    // Audio tone generator for natural navigation clicks/ticks
+    val toneGen = remember {
+        try {
+            ToneGenerator(AudioManager.STREAM_MUSIC, 20)
+        } catch (_: Exception) {
+            null
+        }
+    }
 
-    // Continuous clock driving all idle motion (orbiting, twinkling, drifting) so nothing
-    // on screen ever looks like a frozen diagram, even when the user isn't touching it.
+    fun playClickSound() {
+        try {
+            toneGen?.startTone(ToneGenerator.TONE_PROP_BEEP, 15)
+        } catch (_: Exception) {
+            // ignore
+        }
+    }
+
+    // Manual navigation is NEVER locked — users can zoom in and out freely at any time.
+    val inputLocked = false
+
+    // Continuous clock driving all idle motion (orbiting, twinkling, drifting)
     val infiniteClock = rememberInfiniteTransition(label = "clock")
     val time by infiniteClock.animateFloat(
         initialValue = 0f,
@@ -90,8 +110,11 @@ fun CosmicZoomScreen() {
     )
 
     fun onSettle(levelInt: Int) {
-        settledLevel = levelInt
-        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        if (settledLevel != levelInt) {
+            settledLevel = levelInt
+            playClickSound()
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
         if (phase == Phase.JOURNEY && levelInt >= COSMIC_LEVELS.size - 1) {
             phase = Phase.ARRIVED
         }
@@ -101,6 +124,8 @@ fun CosmicZoomScreen() {
     }
 
     fun animateToLevel(target: Int, durationMs: Int = 450) {
+        playClickSound()
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
         animJob?.cancel()
         val clamped = target.coerceIn(0, COSMIC_LEVELS.size - 1)
         animJob = scope.launch {
@@ -113,26 +138,33 @@ fun CosmicZoomScreen() {
         }
     }
 
+    var lastSoundPlayedLevel by remember { mutableIntStateOf(0) }
+
     fun handleDrag(deltaPx: Float) {
         if (phase == Phase.INTRO) phase = Phase.JOURNEY
-        if (phase != Phase.JOURNEY && phase != Phase.SEEKING_EARTH) return
         val raw = zoomLevel + deltaPx * DRAG_SENSITIVITY
         zoomLevel = when {
             raw < 0f -> raw * RUBBER_BAND_DAMPING
             raw > MAX_LEVEL -> MAX_LEVEL + (raw - MAX_LEVEL) * RUBBER_BAND_DAMPING
             else -> raw
         }
+        val currentInt = zoomLevel.roundToInt()
+        if (currentInt != lastSoundPlayedLevel) {
+            lastSoundPlayedLevel = currentInt
+            playClickSound()
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
     }
 
     fun handleZoom(delta: Float) {
         if (phase == Phase.INTRO) phase = Phase.JOURNEY
-        if (phase != Phase.JOURNEY && phase != Phase.SEEKING_EARTH) return
         val raw = zoomLevel + delta
         zoomLevel = when {
             raw < 0f -> raw * RUBBER_BAND_DAMPING
             raw > MAX_LEVEL -> MAX_LEVEL + (raw - MAX_LEVEL) * RUBBER_BAND_DAMPING
             else -> raw
         }
+        playClickSound()
     }
 
     fun finishGesture() {
@@ -140,7 +172,6 @@ fun CosmicZoomScreen() {
     }
 
     val gestureModifier = Modifier.pointerInput(inputLocked, phase) {
-        if (inputLocked) return@pointerInput
         awaitEachGesture {
             awaitFirstDown(requireUnconsumed = false)
             animJob?.cancel()
@@ -160,10 +191,10 @@ fun CosmicZoomScreen() {
         }
     }
 
-    LaunchedEffect(phase) {
-        if (phase == Phase.ARRIVED) {
-            delay(2600)
-            phase = Phase.SEEKING_EARTH
+    // Automatically exit ARRIVED or BEYOND if the user manually navigates back in
+    LaunchedEffect(zoomLevel) {
+        if (zoomLevel < 8.5f && (phase == Phase.ARRIVED || phase == Phase.BEYOND)) {
+            phase = Phase.JOURNEY
         }
     }
 
@@ -180,7 +211,7 @@ fun CosmicZoomScreen() {
             val kicks = listOf(Offset(6f, 0f), Offset(-5f, 3f), Offset(4f, -3f), Offset(-2f, 2f), Offset.Zero)
             for (k in kicks) {
                 shakeOffset = k
-                delay(45)
+                delay(45.milliseconds)
             }
         }
         lastLevelForShake = level
@@ -198,12 +229,10 @@ fun CosmicZoomScreen() {
         (curExp + (nextExp - curExp) * fraction).roundToInt()
     }
 
-    // The emotional arc, made visible: cold and distant on the way out, warming as you
-    // find your way home, warmest at the very end. This is what keeps "you are tiny"
-    // from reading as bleak — the palette itself tells you where the story is going.
+    // The emotional arc, made visible
     val warmth = when (phase) {
         Phase.EARTH_FOUND, Phase.RETURNING, Phase.FINAL -> 1f
-        Phase.SEEKING_EARTH -> ((MAX_LEVEL - zoomLevel) / (MAX_LEVEL - EARTH_LEVEL)).coerceIn(0f, 1f) * 0.55f
+        Phase.SEEKING_EARTH, Phase.BEYOND -> ((MAX_LEVEL - zoomLevel) / (MAX_LEVEL - EARTH_LEVEL)).coerceIn(0f, 1f) * 0.55f
         else -> 0f
     }
     val bgColor by animateColorAsState(
@@ -218,7 +247,11 @@ fun CosmicZoomScreen() {
         modifier = Modifier
             .fillMaxSize()
             .background(bgColor)
-            .clickable(enabled = phase == Phase.INTRO) { phase = Phase.JOURNEY }
+            .clickable(enabled = phase == Phase.INTRO) {
+                playClickSound()
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                phase = Phase.JOURNEY
+            }
             .then(gestureModifier)
     ) {
         CosmicVisual(
@@ -246,13 +279,17 @@ fun CosmicZoomScreen() {
             )
         }
 
-        if (phase == Phase.JOURNEY || phase == Phase.SEEKING_EARTH || phase == Phase.ARRIVED) {
+        if (phase == Phase.JOURNEY || phase == Phase.SEEKING_EARTH || phase == Phase.ARRIVED || phase == Phase.BEYOND || phase == Phase.RETURNING) {
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(start = 20.dp, bottom = 20.dp)
                     .semantics { contentDescription = "Scale details" }
-                    .clickable { showScaleDetail = !showScaleDetail }
+                    .clickable {
+                        playClickSound()
+                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        showScaleDetail = !showScaleDetail
+                    }
             ) {
                 Text(exponentLabel(interpolatedExponent), color = Color.White.copy(alpha = 0.55f), fontSize = 13.sp)
                 nearestLevel.sizeFact?.let {
@@ -269,35 +306,31 @@ fun CosmicZoomScreen() {
             }
         }
 
-        if (phase == Phase.JOURNEY || phase == Phase.SEEKING_EARTH) {
-            ScaleRuler(
-                currentLevel = zoomLevel,
-                onTapLevel = { animateToLevel(it) },
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 14.dp)
-            )
-            ChevronControls(
-                onCloser = { animateToLevel((settledLevel - 1).coerceAtLeast(0)) },
-                onFurther = { animateToLevel((settledLevel + 1).coerceAtMost(COSMIC_LEVELS.size - 1)) },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 20.dp, bottom = 20.dp)
-            )
-        }
+        ScaleRuler(
+            currentLevel = zoomLevel,
+            onTapLevel = { animateToLevel(it) },
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 14.dp)
+        )
+        ChevronControls(
+            onCloser = { animateToLevel((settledLevel - 1).coerceAtLeast(0)) },
+            onFurther = { animateToLevel((settledLevel + 1).coerceAtMost(COSMIC_LEVELS.size - 1)) },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 20.dp, bottom = 20.dp)
+        )
 
-        // --- QUIET ZONE: all narrative text lives in a fixed top band with a scrim
-        // behind it, so it never has to compete with the densest part of the art
-        // (which sits at screen center). This is the fix for text-over-art overlap. ---
-        if (phase == Phase.JOURNEY || phase == Phase.ARRIVED || phase == Phase.SEEKING_EARTH || phase == Phase.EARTH_FOUND || phase == Phase.RETURNING) {
+        // --- QUIET ZONE: all narrative text lives in a fixed top band with a scrim ---
+        if (phase == Phase.JOURNEY || phase == Phase.ARRIVED || phase == Phase.BEYOND || phase == Phase.SEEKING_EARTH || phase == Phase.EARTH_FOUND || phase == Phase.RETURNING) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
-                    .height(190.dp)
+                    .height(210.dp)
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(Color.Black.copy(alpha = 0.55f), Color.Transparent)
+                            colors = listOf(Color.Black.copy(alpha = 0.6f), Color.Transparent)
                         )
                     )
             )
@@ -344,40 +377,106 @@ fun CosmicZoomScreen() {
             IntroHint()
         }
 
+        // Top Narrative Text for ARRIVED
         AnimatedVisibility(
             visible = phase == Phase.ARRIVED,
-            enter = fadeIn(tween(1200)),
+            enter = fadeIn(tween(1000)),
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 80.dp)
-                .padding(horizontal = 32.dp)
+                .padding(top = 76.dp, start = 24.dp, end = 24.dp)
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    "You have reached the observable universe.",
+                    "The Observable Universe",
                     color = Color.White,
-                    fontSize = 18.sp,
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.Light,
                     textAlign = TextAlign.Center
                 )
-                Spacer(Modifier.height(10.dp))
                 Text(
-                    "This is as far as our observations can see.",
-                    color = Color.White.copy(alpha = 0.55f),
-                    fontSize = 13.sp,
-                    textAlign = TextAlign.Center
+                    "~2 trillion galaxies (conservative estimate).",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
         }
 
+        // Bottom Action Button for ARRIVED
         AnimatedVisibility(
-            visible = phase == Phase.SEEKING_EARTH,
-            enter = fadeIn(tween(900)),
+            visible = phase == Phase.ARRIVED,
+            enter = fadeIn(tween(1200)),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 72.dp)
+        ) {
+            Button(
+                onClick = {
+                    playClickSound()
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    phase = Phase.BEYOND
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black)
+            ) {
+                Text("Peer Beyond the Veil ➔", fontSize = 12.sp)
+            }
+        }
+
+        // Top Narrative Text for BEYOND
+        AnimatedVisibility(
+            visible = phase == Phase.BEYOND,
+            enter = fadeIn(tween(1000)),
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 90.dp)
+                .padding(top = 76.dp, start = 24.dp, end = 24.dp)
         ) {
-            Text("Find Earth.", color = Color.White.copy(alpha = 0.75f), fontSize = 16.sp, fontWeight = FontWeight.Light)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    "Beyond the Observable Universe",
+                    color = Color(0xFFFFD166),
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Light,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    "We can only observe the part whose light has reached us. Beyond it, realms exist that human minds can scarcely begin to comprehend.",
+                    color = Color.White.copy(alpha = 0.75f),
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 18.sp,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
+
+        // Bottom Action Button for BEYOND
+        AnimatedVisibility(
+            visible = phase == Phase.BEYOND,
+            enter = fadeIn(tween(1000)),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 72.dp)
+        ) {
+            Button(
+                onClick = {
+                    playClickSound()
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    phase = Phase.RETURNING
+                    animJob?.cancel()
+                    scope.launch {
+                        animate(
+                            initialValue = zoomLevel,
+                            targetValue = EARTH_LEVEL.toFloat(),
+                            animationSpec = tween(3800)
+                        ) { value, _ -> zoomLevel = value }
+                        phase = Phase.EARTH_FOUND
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black)
+            ) {
+                Text("Journey Back Home ➔", fontSize = 12.sp)
+            }
         }
 
         AnimatedVisibility(
@@ -388,8 +487,8 @@ fun CosmicZoomScreen() {
                 .padding(top = 92.dp, start = 32.dp, end = 32.dp)
         ) {
             Text(
-                "Coming home, one scale at a time.",
-                color = Color.White.copy(alpha = 0.78f),
+                "Coming home slowly, one scale at a time...",
+                color = Color.White.copy(alpha = 0.85f),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Light,
                 textAlign = TextAlign.Center
@@ -399,13 +498,15 @@ fun CosmicZoomScreen() {
         if (phase == Phase.EARTH_FOUND) {
             EarthFoundSequence(
                 onComeHome = {
+                    playClickSound()
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     phase = Phase.RETURNING
                     animJob?.cancel()
                     scope.launch {
                         animate(
                             initialValue = zoomLevel,
                             targetValue = 0f,
-                            animationSpec = tween(2200)
+                            animationSpec = tween(2800)
                         ) { value, _ -> zoomLevel = value }
                         phase = Phase.FINAL
                     }
@@ -417,23 +518,26 @@ fun CosmicZoomScreen() {
             visible = phase == Phase.FINAL,
             enter = fadeIn(tween(800)),
             modifier = Modifier
-                .align(Alignment.Center)
-                .padding(horizontal = 32.dp)
+                .fillMaxSize()
         ) {
             FinalScreen(
                 onReset = {
+                    playClickSound()
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     phase = Phase.INTRO
                     zoomLevel = 0f
                     settledLevel = 0
                     showScaleDetail = false
                 },
                 onShare = {
+                    playClickSound()
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     val send = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
-                            putExtra(Intent.EXTRA_TITLE, "My scale of the universe")
+                        putExtra(Intent.EXTRA_TITLE, "My scale of the universe")
                         putExtra(
                             Intent.EXTRA_TEXT,
-                            "I travelled from one human life to the edge of the observable universe, then came home.\n\nYOU → YOUR WORLD → EARTH → MILKY WAY → OBSERVABLE UNIVERSE\n\nHERE"
+                            "We are just stardust, experiencing itself as a human for a little life. Enjoy every moment.\n\nHERE"
                         )
                     }
                     context.startActivity(Intent.createChooser(send, "Share your journey"))
@@ -542,44 +646,56 @@ private fun ChevronControls(
 }
 
 /**
- * The closing beat, staged deliberately slowly: "You are here." arrives alone and holds
- * before anything else appears, since this line is the one the whole app has been
- * building toward — it should feel like the moment the experience lingers on, not just
- * another card in a sequence.
+ * The closing beat: anchored safely at the bottom so it never overlaps the center "You" illustration.
  */
 @Composable
 private fun FinalScreen(onReset: () -> Unit, onShare: () -> Unit) {
     var step by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
-        delay(300)
+        delay(400.milliseconds)
         step = 1
-        delay(1800)
+        delay(1800.milliseconds)
         step = 2
-        delay(900)
+        delay(1000.milliseconds)
         step = 3
     }
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        AnimatedVisibility(visible = step >= 1, enter = fadeIn(tween(1200))) {
-            Text("You are here.", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Light)
-        }
-        Spacer(Modifier.height(28.dp))
-        AnimatedVisibility(visible = step >= 2, enter = fadeIn(tween(1200))) {
-            Text(
-                "The universe is enormous.\nYour life is tiny.\nBut you're here to experience it.",
-                color = Color.White.copy(alpha = 0.75f),
-                fontSize = 14.sp,
-                textAlign = TextAlign.Center,
-                lineHeight = 20.sp
-            )
-        }
-        Spacer(Modifier.height(36.dp))
-        AnimatedVisibility(visible = step >= 3, enter = fadeIn(tween(900))) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = onReset) { Text("EXPLORE AGAIN") }
-                Button(
-                    onClick = onShare,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black)
-                ) { Text("SHARE MY JOURNEY") }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 48.dp),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            AnimatedVisibility(visible = step >= 1, enter = fadeIn(tween(1000))) {
+                Text("You are here.", color = Color.White.copy(alpha = 0.95f), fontSize = 18.sp, fontWeight = FontWeight.Light)
+            }
+            Spacer(Modifier.height(14.dp))
+            AnimatedVisibility(visible = step >= 2, enter = fadeIn(tween(1000))) {
+                Text(
+                    "Don't worry.\nWe are just stardust, experiencing itself as a human for a little life.\nEnjoy every moment.",
+                    color = Color.White.copy(alpha = 0.75f),
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 20.sp
+                )
+            }
+            Spacer(Modifier.height(24.dp))
+            AnimatedVisibility(visible = step >= 3, enter = fadeIn(tween(800))) {
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    OutlinedButton(
+                        onClick = onReset,
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                    ) {
+                        Text("AGAIN", fontSize = 12.sp, fontWeight = FontWeight.Light)
+                    }
+                    Button(
+                        onClick = onShare,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black)
+                    ) {
+                        Text("SHARE", fontSize = 12.sp, fontWeight = FontWeight.Light)
+                    }
+                }
             }
         }
     }
@@ -589,11 +705,11 @@ private fun FinalScreen(onReset: () -> Unit, onShare: () -> Unit) {
 private fun EarthFoundSequence(onComeHome: () -> Unit) {
     var step by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
-        delay(1400)
+        delay(1400.milliseconds)
         step = 1
-        delay(2600)
+        delay(2600.milliseconds)
         step = 2
-        delay(2200)
+        delay(2200.milliseconds)
         step = 3
     }
     Box(modifier = Modifier.fillMaxSize()) {
@@ -607,18 +723,18 @@ private fun EarthFoundSequence(onComeHome: () -> Unit) {
                 Text(
                     "Somewhere on that tiny world, you are living your life right now.",
                     color = Color.White,
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Light,
                     textAlign = TextAlign.Center,
                     lineHeight = 22.sp
                 )
             }
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(16.dp))
             AnimatedVisibility(visible = step >= 2, enter = fadeIn(tween(1000))) {
                 Text(
-                    "Every human story we've ever known happened there.",
+                    "Every human story we've ever known happened right there.",
                     color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     textAlign = TextAlign.Center,
                     lineHeight = 20.sp
                 )

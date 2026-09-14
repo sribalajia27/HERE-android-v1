@@ -7,8 +7,8 @@ See where you are in the universe.
 - Single-screen experience, no login/nav/settings — matches the V1 scope in the spec.
 - Pinch-out or one-finger drag to zoom out through 10 scientifically-grounded scale levels (You → Your world →
   Earth → Moon → Sun → Solar System → Milky Way → Local Group → Cosmic Web → Observable Universe),
-  each drawn procedurally on `Canvas` (no image assets needed) and cross-faded as you move
-  between levels.
+  combining realistic public-domain imagery with procedural cosmic scenes and cross-fading as you move
+  between levels. Distances are shown in kilometres, light-seconds, light-minutes, light-hours, and light-years.
 - A tappable scale indicator (`10ⁿ m`) that stays out of the way until you want it.
 - The "YOU" marker that fades out as the scale stops being able to contain a point.
 - The full emotional arc at the top: reaching the universe → silence → "Look for Earth" →
@@ -22,8 +22,8 @@ See where you are in the universe.
 
 ```
 app/src/main/java/com/example/here/
-  CosmicLevel.kt        the 8 scale stops + exponent labels
-  CosmicVisuals.kt       procedural Canvas drawing per scale, with cross-fade
+  CosmicLevel.kt        the 10 scale stops + exponent labels and distance facts
+  CosmicVisuals.kt      realistic image/procedural scene per scale, with cross-fade
   CosmicZoomScreen.kt    state machine (intro → journey → arrived → seeking earth →
                           earth found → returning → final) + gesture handling
   MainActivity.kt        entry point
