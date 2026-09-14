@@ -409,7 +409,7 @@ fun CosmicZoomScreen() {
             enter = fadeIn(tween(1200)),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 72.dp)
+                .padding(bottom = 96.dp)
         ) {
             Button(
                 onClick = {
@@ -456,7 +456,7 @@ fun CosmicZoomScreen() {
             enter = fadeIn(tween(1000)),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 72.dp)
+                .padding(bottom = 96.dp)
         ) {
             Button(
                 onClick = {
@@ -537,7 +537,7 @@ fun CosmicZoomScreen() {
                         putExtra(Intent.EXTRA_TITLE, "My scale of the universe")
                         putExtra(
                             Intent.EXTRA_TEXT,
-                            "You're a star, experiencing itself as a human for a little life. Enjoy every small moments.\n\nHERE"
+                            "You're a star, experiencing itself as a human for a little while. Enjoy every small moments.\n\nHERE"
                         )
                     }
                     context.startActivity(Intent.createChooser(send, "Share your journey"))
@@ -673,7 +673,7 @@ private fun FinalScreen(onReset: () -> Unit, onShare: () -> Unit) {
             Spacer(Modifier.height(14.dp))
             AnimatedVisibility(visible = step >= 2, enter = fadeIn(tween(1000))) {
                 Text(
-                    "Don't worry.\nYou're a star, experiencing itself as a human for a little life.\nEnjoy every moment.",
+                    "Just Remember.\nYou're a star, experiencing itself as a human for a little while.\nEnjoy every moment.",
                     color = Color.White.copy(alpha = 0.75f),
                     fontSize = 13.sp,
                     textAlign = TextAlign.Center,
