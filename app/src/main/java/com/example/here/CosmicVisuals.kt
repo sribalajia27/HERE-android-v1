@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.graphics.drawscope.scale
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
@@ -39,21 +40,43 @@ fun CosmicVisual(
     time: Float,
     modifier: Modifier = Modifier,
     showCityLights: Boolean = false,
+    userAvatar: String? = null,
 ) {
     val current = COSMIC_LEVELS[level.coerceIn(0, COSMIC_LEVELS.size - 1)]
     val nextIndex = (level + 1).coerceAtMost(COSMIC_LEVELS.size - 1)
     val next = COSMIC_LEVELS[nextIndex]
 
     val field = remember { Random(42) }
-    val points = remember { List(400) { Offset(field.nextFloat(), field.nextFloat()) } }
+    // Increased from 400 to 1200 points to make the observable universe look much denser
+    val points = remember { List(1200) { Offset(field.nextFloat(), field.nextFloat()) } }
     val surroundingsImage = ImageBitmap.imageResource(R.drawable.surroundings_landscape)
     val earth = ImageBitmap.imageResource(R.drawable.earth_apollo)
     val moon = ImageBitmap.imageResource(R.drawable.moon)
 
     Canvas(modifier = modifier.fillMaxSize()) {
-        drawScene(current.index, 1f - fraction, points, time, showCityLights, surroundingsImage, earth, moon)
-        if (current.index != next.index) {
-            drawScene(next.index, fraction, points, time, showCityLights, surroundingsImage, earth, moon)
+        if (current.index == next.index) {
+            drawScene(current.index, 1f, points, time, showCityLights, surroundingsImage, earth, moon, userAvatar)
+        } else {
+            // THE FIX: Cinematic Pull-Back with proper Z-Ordering.
+            // A "slideshow" feel happens when a flat image fades in ON TOP of another flat image.
+            // To fix this, we respect physical 3D space:
+            // 1. The LARGER environment (next) is drawn in the BACKGROUND.
+            // 2. The SMALLER object (current) is drawn in the FOREGROUND.
+            
+            // Background Layer (Incoming larger scale)
+            // Starts just slightly larger (1.15x) and settles to 1.0x, 
+            // enveloping the foreground smoothly.
+            val inScale = 1.15f - (0.15f * fraction)
+            scale(scale = inScale, pivot = center) {
+                drawScene(next.index, fraction, points, time, showCityLights, surroundingsImage, earth, moon, userAvatar)
+            }
+
+            // Foreground Layer (Outgoing smaller scale)
+            // Shrinks just slightly (0.85x) as if we are physically pulling the camera away from it.
+            val outScale = 1f - (0.15f * fraction)
+            scale(scale = outScale, pivot = center) {
+                drawScene(current.index, 1f - fraction, points, time, showCityLights, surroundingsImage, earth, moon, userAvatar)
+            }
         }
     }
 }
@@ -66,14 +89,15 @@ private fun DrawScope.drawScene(
     showCityLights: Boolean,
     surroundingsImage: ImageBitmap,
     earth: ImageBitmap,
-    moon: ImageBitmap
+    moon: ImageBitmap,
+    userAvatar: String?
 ) {
     if (alpha <= 0f) return
     val c = Offset(size.width / 2f, size.height / 2f)
     val short = min(size.width, size.height)
 
     when (levelIndex) {
-        0 -> drawYou(c, short, alpha, time)
+        0 -> drawYou(c, short, alpha, time, userAvatar)
         1 -> drawSurroundings(c, short, alpha, surroundingsImage, time)
         2 -> drawEarth(c, short, alpha, time, showCityLights, earth)
         3 -> drawMoon(c, short, alpha, moon, time)
@@ -100,20 +124,36 @@ private fun DrawScope.glow(center: Offset, radius: Float, color: Color, alpha: F
     )
 }
 
-private fun DrawScope.drawYou(c: Offset, short: Float, a: Float, time: Float) {
+private fun DrawScope.drawYou(c: Offset, short: Float, a: Float, time: Float, userAvatar: String?) {
     val r = short * 0.09f
     // Vibrant multi-color stardust aura around You
     glow(c, r * 3.0f, Color(0xFF4CC9F0), a * 0.35f)
     glow(c, r * 2.0f, Color(0xFFFFD166), a * 0.3f)
     glow(c, r * 1.5f, Color(0xFFF72585), a * 0.25f)
 
-    val headRadius = r * 0.28f
-    drawCircle(Color.White.copy(alpha = a * 0.95f), radius = headRadius, center = Offset(c.x, c.y - r * 0.58f))
-    drawOval(
-        color = Color.White.copy(alpha = a * 0.95f),
-        topLeft = Offset(c.x - r * 0.48f, c.y - r * 0.22f),
-        size = Size(r * 0.96f, r * 1.2f)
-    )
+    if (userAvatar != null) {
+        // Draw the selected emoji avatar
+        drawIntoCanvas { canvas ->
+            val paint = Paint().apply {
+                textSize = r * 2.2f 
+                isAntiAlias = true
+                alpha = (a * 255).toInt()
+                textAlign = Paint.Align.CENTER
+            }
+            // Offset Y slightly to center the emoji baseline vertically
+            canvas.nativeCanvas.drawText(userAvatar, c.x, c.y + r * 0.75f, paint)
+        }
+    } else {
+        // Fallback generic body shape
+        val headRadius = r * 0.28f
+        drawCircle(Color.White.copy(alpha = a * 0.95f), radius = headRadius, center = Offset(c.x, c.y - r * 0.58f))
+        drawOval(
+            color = Color.White.copy(alpha = a * 0.95f),
+            topLeft = Offset(c.x - r * 0.48f, c.y - r * 0.22f),
+            size = Size(r * 0.96f, r * 1.2f)
+        )
+    }
+
     drawCircle(Color(0xFF4CC9F0).copy(alpha = a * 0.6f), radius = r * 1.08f, center = c, style = Stroke(width = 2f))
 
     // Twinkling stardust around You
@@ -133,13 +173,22 @@ private fun DrawScope.drawSurroundings(
     time: Float
 ) {
     val imageRadius = short * 0.18f
-    val pulse = 1f + 0.03f * sin(time * 2f)
+    val pulse = 1f + 0.04f * sin(time * 2.5f)
     // Vibrant sunset/aurora multi-color glow
-    glow(c, imageRadius * 2.4f * pulse, Color(0xFF4361EE), a * 0.3f)
-    glow(c, imageRadius * 1.8f * pulse, Color(0xFFF72585), a * 0.25f)
-    glow(c, imageRadius * 1.3f * pulse, Color(0xFFFFD166), a * 0.2f)
+    glow(c, imageRadius * 2.6f * pulse, Color(0xFF4361EE), a * 0.35f)
+    glow(c, imageRadius * 1.9f * pulse, Color(0xFFF72585), a * 0.3f)
+    glow(c, imageRadius * 1.4f * pulse, Color(0xFFFFD166), a * 0.25f)
     drawCircularImage(image, c, imageRadius, a)
-    drawCircle(Color(0xFFFFEE93).copy(alpha = a * 0.5f), radius = imageRadius * 1.04f, center = c, style = Stroke(width = 2f))
+    drawCircle(Color(0xFFFFEE93).copy(alpha = a * 0.6f), radius = imageRadius * 1.04f, center = c, style = Stroke(width = 2f))
+
+    // Orbiting atmospheric / dust motes (consistent animation)
+    for (i in 0..7) {
+        val angle = i * 0.785 + time * 0.4
+        val dist = imageRadius * (1.2f + 0.15f * sin(time * 1.5f + i))
+        val pos = Offset(c.x + (cos(angle) * dist).toFloat(), c.y + (sin(angle) * dist).toFloat())
+        val twinkle = 0.5f + 0.5f * sin(time * 3f + i)
+        drawCircle(Color(0xFFFFD166).copy(alpha = a * 0.7f * twinkle), radius = short * 0.0025f, center = pos)
+    }
 }
 
 private fun DrawScope.drawCircularImage(image: ImageBitmap, center: Offset, radius: Float, alpha: Float) {
@@ -173,10 +222,11 @@ private fun DrawScope.drawEarth(
     earth: ImageBitmap
 ) {
     val r = short * 0.22f
+    val pulse = 1f + 0.03f * sin(time * 2f)
     // Vivid neon blue and auroral cyan atmosphere glow
-    glow(c, r * 2.5f, Color(0xFF4CC9F0), a * 0.5f)
-    glow(c, r * 1.9f, Color(0xFF3A7DFF), a * 0.45f)
-    glow(c, r * 1.3f, Color(0xFF7209B7), a * 0.3f)
+    glow(c, r * 2.7f * pulse, Color(0xFF4CC9F0), a * 0.55f)
+    glow(c, r * 2.0f * pulse, Color(0xFF3A7DFF), a * 0.5f)
+    glow(c, r * 1.4f * pulse, Color(0xFF7209B7), a * 0.35f)
 
     val diameter = (r * 2f).toInt()
     val sourceSize = minOf(earth.width, earth.height)
@@ -210,7 +260,7 @@ private fun DrawScope.drawEarth(
         radius = r,
         center = c
     )
-    drawCircle(Color(0xFF4CC9F0).copy(alpha = a * 0.4f), radius = r * 1.05f, center = c, style = Stroke(width = 2f))
+    drawCircle(Color(0xFF4CC9F0).copy(alpha = a * 0.5f), radius = r * 1.05f, center = c, style = Stroke(width = 2f))
 
     if (cityLights) {
         val lightCount = 16
@@ -225,6 +275,14 @@ private fun DrawScope.drawEarth(
                 center = pos
             )
         }
+    }
+
+    // Orbiting upper-atmosphere satellite / stardust particles
+    for (i in 0..6) {
+        val angle = i * 1.047 + time * 0.35
+        val dist = r * (1.25f + 0.1f * sin(time * 2f + i))
+        val satPos = Offset(c.x + (cos(angle) * dist).toFloat(), c.y + (sin(angle) * dist).toFloat())
+        drawCircle(Color(0xFF4CC9F0).copy(alpha = a * 0.75f), radius = short * 0.002f, center = satPos)
     }
 }
 
@@ -277,25 +335,51 @@ private fun DrawScope.drawMoon(c: Offset, short: Float, a: Float, moon: ImageBit
 }
 
 private fun DrawScope.drawSun(c: Offset, short: Float, a: Float, time: Float) {
-    val r = short * 0.15f
-    glow(c, r * 3.5f, Color(0xFFFF8800), a * 0.5f)
-    glow(c, r * 2.0f, Color(0xFFFFB703), a * 0.7f)
+    val r = short * 0.16f
+    val pulse = 1f + 0.05f * sin(time * 3f)
+    
+    // Terrifying and majestic multi-tier solar corona & plasma glow
+    glow(c, r * 4.2f * pulse, Color(0xFFD90429), a * 0.4f)
+    glow(c, r * 3.2f * pulse, Color(0xFFFF6B00), a * 0.6f)
+    glow(c, r * 2.2f * pulse, Color(0xFFFFB703), a * 0.8f)
 
-    // Animated solar flares / rays
-    val rayCount = 12
-    for (i in 0 until rayCount) {
-        val angle = (i / rayCount.toFloat()) * 2 * Math.PI + time * 0.1
-        val innerR = r * 1.05f
-        val outerR = r * (1.3f + 0.15f * sin(time * 2f + i))
-        val p1 = Offset(c.x + (cos(angle) * innerR).toFloat(), c.y + (sin(angle) * outerR).toFloat())
-        val p2 = Offset(c.x + (cos(angle) * outerR).toFloat(), c.y + (sin(angle) * outerR).toFloat())
-        drawLine(Color(0xFFFFD166).copy(alpha = a * 0.4f), p1, p2, strokeWidth = 3f)
+    // Erupting Coronal Loops / Magnetic Arcs (curving plasma prominences)
+    val loopCount = 6
+    for (i in 0 until loopCount) {
+        val baseAngle = i * (2.0 * Math.PI / loopCount) + time * 0.05
+        val arcPath = Path().apply {
+            val startAngle = baseAngle - 0.2
+            val endAngle = baseAngle + 0.2
+            val p1 = Offset(c.x + (cos(startAngle) * r).toFloat(), c.y + (sin(startAngle) * r).toFloat())
+            val p3 = Offset(c.x + (cos(endAngle) * r).toFloat(), c.y + (sin(endAngle) * r).toFloat())
+            val controlAngle = baseAngle
+            val peakR = r * (1.35f + 0.25f * sin(time * 2f + i))
+            val p2 = Offset(c.x + (cos(controlAngle) * peakR).toFloat(), c.y + (sin(controlAngle) * peakR).toFloat())
+            moveTo(p1.x, p1.y)
+            quadraticBezierTo(p2.x, p2.y, p3.x, p3.y)
+        }
+        drawPath(
+            path = arcPath,
+            color = Color(0xFFFF4500).copy(alpha = a * 0.7f),
+            style = Stroke(width = 4f)
+        )
     }
 
-    // Sun disc
+    // Solar Wind Particles / Coronal Mass Ejection streams radiating outward
+    val rayCount = 20
+    for (i in 0 until rayCount) {
+        val angle = (i / rayCount.toFloat()) * 2 * Math.PI + time * 0.08
+        val innerR = r * 1.02f
+        val outerR = r * (1.2f + 0.3f * ((i * 37) % 10) / 10f * (0.5f + 0.5f * sin(time * 4f + i)))
+        val p1 = Offset(c.x + (cos(angle) * innerR).toFloat(), c.y + (sin(angle) * innerR).toFloat())
+        val p2 = Offset(c.x + (cos(angle) * outerR).toFloat(), c.y + (sin(angle) * outerR).toFloat())
+        drawLine(Color(0xFFFFD166).copy(alpha = a * 0.5f), p1, p2, strokeWidth = 2.5f)
+    }
+
+    // Sun Core Disc with blazing plasma gradient
     drawCircle(
         brush = Brush.radialGradient(
-            colors = listOf(Color(0xFFFFF3B0), Color(0xFFFFB703), Color(0xFFD90429)),
+            colors = listOf(Color(0xFFFFFFF3), Color(0xFFFFEE93), Color(0xFFFFB703), Color(0xFFFF4500), Color(0xFFD90429)),
             center = c,
             radius = r
         ),
@@ -303,20 +387,8 @@ private fun DrawScope.drawSun(c: Offset, short: Float, a: Float, time: Float) {
         center = c
     )
 
-    // Granulation spots
-    val spotCount = 8
-    for (i in 0 until spotCount) {
-        val angle = i * 0.8f + time * 0.05f
-        val dist = r * 0.5f * spotPosDistanceFactor(i)
-        val spotPos = Offset(c.x + cos(angle.toDouble()).toFloat() * dist, c.y + sin(angle.toDouble()).toFloat() * spotPosDistanceFactor(i))
-        drawCircle(Color(0xFFFF7B00).copy(alpha = a * 0.3f), radius = r * 0.15f, center = spotPos)
-    }
-
-    drawCircle(Color(0xFFFFEE93).copy(alpha = a * 0.6f), radius = r * 1.02f, center = c, style = Stroke(width = 2f))
-}
-
-private fun spotPosDistanceFactor(i: Int): Float {
-    return sin(i.toFloat()).let { if (it < 0f) -it else it }
+    // Blazing Rim Atmosphere
+    drawCircle(Color(0xFFFFEE93).copy(alpha = a * 0.8f), radius = r * 1.02f, center = c, style = Stroke(width = 2.5f))
 }
 
 private fun DrawScope.drawSolarSystem(c: Offset, short: Float, a: Float, time: Float) {
@@ -387,9 +459,17 @@ private fun DrawScope.drawSolarSystem(c: Offset, short: Float, a: Float, time: F
         val basePos = Offset(pos.x, pos.y + short * 0.07f)
         drawLine(col.copy(alpha = a * 0.35f), pos, basePos, strokeWidth = 1f)
 
-        glow(pos, 18f, col, a * 0.6f)
-        drawCircle(Color.White.copy(alpha = a), radius = 4f, center = pos)
-        drawCircle(col.copy(alpha = a * 0.85f), radius = 8f, center = pos, style = Stroke(width = 1.2f))
+        // Add blinking effect for Voyager probes (indices 8 and 9)
+        val isVoyager = i >= 8
+        val blinkAlpha = if (isVoyager) {
+            a * (0.3f + 0.7f * (sin(time * 8f + i) * 0.5f + 0.5f)) // Fast blink
+        } else {
+            a
+        }
+
+        glow(pos, 18f, col, if (isVoyager) blinkAlpha * 0.8f else a * 0.6f)
+        drawCircle(Color.White.copy(alpha = blinkAlpha), radius = 4f, center = pos)
+        drawCircle(col.copy(alpha = if (isVoyager) blinkAlpha else a * 0.85f), radius = 8f, center = pos, style = Stroke(width = 1.2f))
 
         drawIntoCanvas { canvas ->
             val paint = Paint().apply {
@@ -592,7 +672,12 @@ private fun DrawScope.drawObservableUniverse(c: Offset, short: Float, a: Float, 
     )
 
     points.forEachIndexed { i, p ->
-        val pos = Offset(c.x + (p.x - 0.5f) * short * 0.96f, c.y + (p.y - 0.5f) * short * 0.96f)
+        // Use a much tighter spread so that ALL points fall *inside* the circle boundary.
+        // We use polar coordinates to ensure an even distribution within the circular bound.
+        val r = boundary * (p.x * 0.95f) // slightly inset from the true edge
+        val angle = p.y * 2 * Math.PI
+        val pos = Offset(c.x + (cos(angle) * r).toFloat(), c.y + (sin(angle) * r).toFloat())
+        
         val hueSelector = (p.x * 10).toInt() % 4
         val galaxyColor = when (hueSelector) {
             0 -> Color(0xFF4CC9F0)
