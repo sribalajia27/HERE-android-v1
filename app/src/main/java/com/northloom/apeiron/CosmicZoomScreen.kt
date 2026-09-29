@@ -1,9 +1,10 @@
-package com.example.here
+package com.northloom.apeiron
 
 // import android.media.AudioManager
 // import android.media.ToneGenerator
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -25,13 +26,17 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -46,7 +51,14 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.roundToInt
+import kotlin.math.sin
+import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 
 private enum class Phase { INTRO, JOURNEY, ARRIVED, BEYOND, EARTH_FOUND, RETURNING }
@@ -60,10 +72,22 @@ private const val RUBBER_BAND_DAMPING = 0.3f
 private val COOL_BG = Color(0xFF020204)
 private val WARM_BG = Color(0xFF1A0F08)
 
+// A slow-settle "ease-out-expo" curve — motion starts fast and glides to rest rather
+// than the more mechanical default, which is most of what makes a transition read as
+// deliberate camera movement instead of a UI animation.
+private val ORGANIC_EASING = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
+// A single gesture that crosses this many whole levels triggers a warp-streak flash,
+// instead of just snapping into place.
+private const val WARP_LEVEL_JUMP_THRESHOLD = 3
+
 @Composable
 fun CosmicZoomScreen(
     userName: String? = null,
     userAvatar: String? = null,
+    musicEnabled: Boolean = true,
+    musicVolume: Float = 0.7f,
+    hapticsEnabled: Boolean = true,
+    audioController: AudioController? = null,
     onEditProfile: () -> Unit = {}
 ) {
     var phase by remember { mutableStateOf(Phase.INTRO) }
@@ -73,9 +97,35 @@ fun CosmicZoomScreen(
     var animJob by remember { mutableStateOf<Job?>(null) }
     var shakeOffset by remember { mutableStateOf(Offset.Zero) }
     var lastLevelForShake by remember { mutableIntStateOf(0) }
+    var gestureStartLevel by remember { mutableIntStateOf(0) }
+    var warpFlash by remember { mutableStateOf(false) }
+    var showFactsDialog by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
+
+    fun performHaptic(type: HapticFeedbackType) {
+        if (hapticsEnabled) {
+            haptics.performHapticFeedback(type)
+        }
+    }
+
+    LaunchedEffect(musicEnabled, musicVolume) {
+        audioController?.setMusicEnabled(musicEnabled)
+        audioController?.setUserVolume(musicVolume)
+    }
+
+    LaunchedEffect(phase) {
+        val targetMultiplier = when (phase) {
+            Phase.INTRO -> 0.5f
+            Phase.JOURNEY -> 1.0f
+            Phase.ARRIVED -> 0.15f
+            Phase.BEYOND -> 0.9f
+            Phase.RETURNING -> 0.8f
+            Phase.EARTH_FOUND -> 0.6f
+        }
+        audioController?.setPhaseTargetVolume(targetMultiplier)
+    }
 
     // The ToneGenerator was too harsh/annoying for a serene space app.
     // We removed it in favor of relying purely on the subtle haptic feedback for physical presence.
@@ -99,7 +149,7 @@ fun CosmicZoomScreen(
         if (settledLevel != levelInt) {
             settledLevel = levelInt
             playClickSound()
-            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            performHaptic(HapticFeedbackType.TextHandleMove)
         }
         if (phase == Phase.JOURNEY && levelInt >= COSMIC_LEVELS.size - 1) {
             phase = Phase.ARRIVED
@@ -109,18 +159,26 @@ fun CosmicZoomScreen(
         }
     }
 
-    fun animateToLevel(target: Int, durationMs: Int = 450) {
+    fun animateToLevel(target: Int, durationMs: Int = 520) {
         playClickSound()
-        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        performHaptic(HapticFeedbackType.LongPress)
         animJob?.cancel()
         val clamped = target.coerceIn(0, COSMIC_LEVELS.size - 1)
         animJob = scope.launch {
             animate(
                 initialValue = zoomLevel,
                 targetValue = clamped.toFloat(),
-                animationSpec = tween(durationMs)
+                animationSpec = tween(durationMs, easing = ORGANIC_EASING)
             ) { value, _ -> zoomLevel = value }
             onSettle(clamped)
+        }
+    }
+
+    fun triggerWarpFlash() {
+        scope.launch {
+            warpFlash = true
+            delay(70)
+            warpFlash = false
         }
     }
 
@@ -141,7 +199,7 @@ fun CosmicZoomScreen(
         if (currentInt != lastSoundPlayedLevel) {
             lastSoundPlayedLevel = currentInt
             playClickSound()
-            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            performHaptic(HapticFeedbackType.TextHandleMove)
         }
     }
 
@@ -160,12 +218,18 @@ fun CosmicZoomScreen(
     }
 
     fun finishGesture() {
-        animateToLevel(zoomLevel.roundToInt(), durationMs = 380)
+        val target = zoomLevel.roundToInt()
+        if (abs(target - gestureStartLevel) >= WARP_LEVEL_JUMP_THRESHOLD) {
+            triggerWarpFlash()
+        }
+        animateToLevel(target, durationMs = 460)
     }
 
-    val gestureModifier = Modifier.pointerInput(inputLocked, phase) {
+    val gestureModifier = Modifier.pointerInput(inputLocked, phase, showFactsDialog) {
+        if (showFactsDialog) return@pointerInput
         awaitEachGesture {
             awaitFirstDown(requireUnconsumed = false)
+            gestureStartLevel = zoomLevel.roundToInt()
             animJob?.cancel()
             do {
                 val event = awaitPointerEvent()
@@ -237,7 +301,7 @@ fun CosmicZoomScreen(
             .background(bgColor)
             .clickable(enabled = phase == Phase.INTRO) {
                 playClickSound()
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                performHaptic(HapticFeedbackType.LongPress)
                 phase = Phase.JOURNEY
             }
             .then(gestureModifier)
@@ -265,27 +329,63 @@ fun CosmicZoomScreen(
             )
         }
 
-        // The "YOU" marker fades out entirely by the time you reach the Milky Way.
-        // It emphasizes how totally lost and invisible humanity is at the galactic scale.
+        // A soft vignette, always present — the single cheapest thing that separates a
+        // "screen full of shapes" from something that reads as a shot through a lens.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.38f))
+                    )
+                )
+        )
+
+        // A brief warp-speed streak flash on a big, fast jump — the visual equivalent of
+        // the camera whipping past several scales at once, instead of just teleporting.
+        AnimatedVisibility(
+            visible = warpFlash,
+            enter = fadeIn(tween(40)),
+            exit = fadeOut(tween(320)),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            WarpStreaks()
+        }
+
+        // The profile & settings pill badge in the top-left.
         val markerAlpha = (1f - (zoomLevel / 5.5f)).coerceIn(0f, 1f)
         if (markerAlpha > 0f) {
-            // As you get further away (past the Moon), the text desperately points out where you are.
-            val baseName = if (!userName.isNullOrBlank()) userName.uppercase() else "YOU"
-            val markerText = if (zoomLevel > 3.5f) "● $baseName ARE HERE" else "● $baseName"
-            Text(
-                text = markerText,
-                color = Color.White.copy(alpha = markerAlpha * 0.7f),
-                fontSize = 12.sp,
+            val displayName = if (!userName.isNullOrBlank()) userName else "YOU"
+            val avatarSymbol = userAvatar ?: "●"
+            Box(
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .padding(top = 48.dp, start = 20.dp)
+                    .padding(top = 44.dp, start = 16.dp)
+                    .graphicsLayer { alpha = markerAlpha }
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.08f))
                     .clickable(enabled = phase == Phase.INTRO || phase == Phase.JOURNEY) {
                         playClickSound()
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        performHaptic(HapticFeedbackType.LongPress)
                         onEditProfile()
                     }
-                    .padding(8.dp) // Increase touch target size slightly
-            )
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(avatarSymbol, fontSize = 14.sp)
+                    Text(
+                        text = displayName.uppercase(),
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text("⚙", color = Color(0xFF4CC9F0), fontSize = 12.sp)
+                }
+            }
         }
 
         if (phase == Phase.JOURNEY || phase == Phase.ARRIVED || phase == Phase.BEYOND || phase == Phase.RETURNING || phase == Phase.EARTH_FOUND) {
@@ -296,7 +396,7 @@ fun CosmicZoomScreen(
                     .semantics { contentDescription = "Scale details" }
                     .clickable {
                         playClickSound()
-                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        performHaptic(HapticFeedbackType.TextHandleMove)
                         showScaleDetail = !showScaleDetail
                     }
             ) {
@@ -349,7 +449,12 @@ fun CosmicZoomScreen(
             Column(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .padding(top = 76.dp, start = 24.dp, end = 24.dp),
+                    .padding(top = 76.dp, start = 24.dp, end = 24.dp)
+                    .clickable {
+                        playClickSound()
+                        performHaptic(HapticFeedbackType.TextHandleMove)
+                        showFactsDialog = true
+                    },
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
@@ -366,14 +471,12 @@ fun CosmicZoomScreen(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(top = 4.dp)
                 )
-                nearestLevel.sizeFact?.let {
-                    Text(
-                        it,
-                        color = Color.White.copy(alpha = labelAlpha * 0.5f),
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
-                }
+                Text(
+                    "ℹ Tap for deep cosmic facts",
+                    color = Color(0xFF4CC9F0).copy(alpha = labelAlpha * 0.75f),
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
             }
         }
 
@@ -383,7 +486,7 @@ fun CosmicZoomScreen(
             exit = fadeOut(tween(400)),
             modifier = Modifier.align(Alignment.Center)
         ) {
-            IntroHint()
+            IntroHint(userName)
         }
 
         // Top Narrative Text for ARRIVED
@@ -393,6 +496,11 @@ fun CosmicZoomScreen(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(top = 76.dp, start = 24.dp, end = 24.dp)
+                .clickable {
+                    playClickSound()
+                    performHaptic(HapticFeedbackType.TextHandleMove)
+                    showFactsDialog = true
+                }
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
@@ -409,6 +517,12 @@ fun CosmicZoomScreen(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(top = 4.dp)
                 )
+                Text(
+                    "ℹ Tap for deep cosmic facts",
+                    color = Color(0xFF4CC9F0).copy(alpha = 0.75f),
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
             }
         }
 
@@ -423,7 +537,7 @@ fun CosmicZoomScreen(
             Button(
                 onClick = {
                     playClickSound()
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    performHaptic(HapticFeedbackType.LongPress)
                     phase = Phase.BEYOND
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black)
@@ -470,14 +584,14 @@ fun CosmicZoomScreen(
             Button(
                 onClick = {
                     playClickSound()
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    performHaptic(HapticFeedbackType.LongPress)
                     phase = Phase.RETURNING
                     animJob?.cancel()
                     scope.launch {
                         animate(
                             initialValue = zoomLevel,
                             targetValue = EARTH_LEVEL.toFloat(),
-                            animationSpec = tween(3800)
+                            animationSpec = tween(3800, easing = ORGANIC_EASING)
                         ) { value, _ -> zoomLevel = value }
                         phase = Phase.EARTH_FOUND
                     }
@@ -508,104 +622,103 @@ fun CosmicZoomScreen(
             EarthFoundSequence(
                 onRestart = {
                     playClickSound()
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    performHaptic(HapticFeedbackType.LongPress)
                     animJob?.cancel()
                     scope.launch {
                         phase = Phase.RETURNING // Temp phase to hide narrative UI during animation
                         animate(
                             initialValue = zoomLevel,
                             targetValue = 0f,
-                            animationSpec = tween(2500, easing = LinearOutSlowInEasing)
+                            animationSpec = tween(2500, easing = ORGANIC_EASING)
                         ) { value, _ -> zoomLevel = value }
                         phase = Phase.INTRO
                     }
                 }
             )
         }
+
+        if (showFactsDialog) {
+            CosmicFactsDialog(level = nearestLevel, onDismiss = { showFactsDialog = false })
+        }
     }
 }
 
+/**
+ * Two short lines, then the door out — kept deliberately brief. This is the moment the
+ * whole app has been building to, and a long monologue here dilutes it rather than
+ * deepening it. Say less, mean it more, let the visual (Earth, lit and warm) carry the
+ * rest of the feeling.
+ */
 @Composable
 private fun EarthFoundSequence(onRestart: () -> Unit) {
     var step by remember { mutableIntStateOf(0) }
-    
-    // The sequence drives the fading in and out of the three stanzas.
+
     LaunchedEffect(Unit) {
-        delay(1000.milliseconds) 
-        step = 1 // First Load In
-        
-        delay(4000.milliseconds)
-        step = 2 // First Load Out
-        delay(1000.milliseconds)
-        
-        step = 3 // Second Load In
-        delay(6500.milliseconds)
-        step = 4 // Second Load Out
-        delay(1000.milliseconds)
-        
-        step = 5 // Third Load In
-        delay(7000.milliseconds) // Give time to read the final profound text
-        step = 6 // Show the restart button
+        delay(1200.milliseconds)
+        step = 1
+        delay(4200.milliseconds)
+        step = 2
+        delay(4200.milliseconds)
+        step = 3
+        delay(5500.milliseconds) // Slightly longer hold for emotional impact
+        step = 4
     }
-    
+
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(
+        Box(
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 92.dp, start = 36.dp, end = 36.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .align(Alignment.Center)
+                .padding(horizontal = 40.dp),
+            contentAlignment = Alignment.Center
         ) {
-            // First load
             AnimatedVisibility(
                 visible = step == 1,
-                enter = fadeIn(tween(1500)),
+                enter = fadeIn(tween(1400)),
                 exit = fadeOut(tween(1000))
             ) {
                 Text(
-                    "Somewhere on this tiny world,\nyou are living your life right now.",
-                    color = Color.White,
-                    fontSize = 16.sp,
+                    "Somewhere on this tiny world,\nyou are living right now.",
+                    color = Color.White.copy(alpha = 0.95f),
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.Light,
                     textAlign = TextAlign.Center,
-                    lineHeight = 24.sp
+                    lineHeight = 26.sp
                 )
             }
-            
-            // Second load
+
             AnimatedVisibility(
-                visible = step == 3,
-                enter = fadeIn(tween(1500)),
+                visible = step == 2,
+                enter = fadeIn(tween(1400)),
                 exit = fadeOut(tween(1000))
             ) {
                 Text(
-                    "Everything you've ever known is here.\n\nEveryone you've ever loved.\nEvery joy.\nEvery loss.\nEvery moment you thought would last forever.\n\nHere.",
-                    color = Color.White,
-                    fontSize = 15.sp,
+                    "Every story you've ever known\nhappened here.",
+                    color = Color.White.copy(alpha = 0.95f),
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.Light,
                     textAlign = TextAlign.Center,
-                    lineHeight = 22.sp
+                    lineHeight = 26.sp
                 )
             }
-            
-            // Third load
+
             AnimatedVisibility(
-                visible = step >= 5, // Stays on screen
-                enter = fadeIn(tween(2000))
+                visible = step >= 3,
+                enter = fadeIn(tween(1600)),
+                exit = fadeOut(tween(1200))
             ) {
                 Text(
-                    "Now look at where “here” really is.\n\nAn ordinary planet,\ndrifting through an incomprehensible universe.\n\nAnd for all we know…\nthis tiny blue world is the only place\nwhere any of it has ever happened.\n\nYou are a brief moment of the universe,\nbecoming aware of itself.\n\nIn a universe this vast, perhaps it's okay to let some things go.\n\nBe kind. Enjoy the little things.",
-                    color = Color.White,
-                    fontSize = 14.sp,
+                    "So while you're here,\nenjoy every bit of it.",
+                    color = Color(0xFF4CC9F0).copy(alpha = 0.95f),
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Light,
                     textAlign = TextAlign.Center,
-                    lineHeight = 21.sp
+                    lineHeight = 26.sp
                 )
             }
         }
 
-        // Restart Action Button
         AnimatedVisibility(
-            visible = step >= 6,
+            visible = step >= 4,
             enter = fadeIn(tween(1500)),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -613,16 +726,129 @@ private fun EarthFoundSequence(onRestart: () -> Unit) {
         ) {
             Button(
                 onClick = onRestart,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black)
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
+                shape = RoundedCornerShape(14.dp)
             ) {
-                Text("Begin Again ➔", fontSize = 12.sp)
+                Text("Begin Again ➔", fontSize = 13.sp, fontWeight = FontWeight.Medium)
             }
         }
     }
 }
 
 @Composable
-private fun IntroHint() {
+private fun CosmicFactsDialog(
+    level: CosmicLevel,
+    onDismiss: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.8f))
+            .clickable { onDismiss() }
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    do {
+                        val event = awaitPointerEvent()
+                        event.changes.forEach { it.consume() }
+                    } while (event.changes.any { it.pressed })
+                }
+            },
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.75f)
+                .clickable(enabled = false) {}
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        do {
+                            val event = awaitPointerEvent()
+                            event.changes.forEach { it.consume() }
+                        } while (event.changes.any { it.pressed })
+                    }
+                },
+            color = Color(0xFF0A0A12),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            tonalElevation = 16.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(40.dp)
+                        .height(4.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.3f))
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                Text(
+                    text = level.title,
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "${exponentLabel(level.exponent)} · ${level.sizeFact ?: ""}",
+                    color = Color(0xFF4CC9F0),
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 20.dp),
+                    textAlign = TextAlign.Center
+                )
+
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(level.facts.size) { index ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(14.dp))
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = "✦",
+                                color = Color(0xFF4CC9F0),
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = level.facts[index],
+                                color = Color.White.copy(alpha = 0.85f),
+                                fontSize = 14.sp,
+                                lineHeight = 20.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text("Close Facts", fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun IntroHint(userName: String?) {
     val infinite = rememberInfiniteTransition(label = "breathe")
     val bob by infinite.animateFloat(
         initialValue = 0f,
@@ -633,8 +859,9 @@ private fun IntroHint() {
         ),
         label = "bob"
     )
+    val greeting = if (!userName.isNullOrBlank()) "${userName.uppercase()} IS HERE" else "YOU ARE HERE"
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("YOU ARE HERE", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Light)
+        Text(greeting, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Light)
         Spacer(Modifier.height(56.dp))
         Text(
             "⌄",
@@ -644,6 +871,22 @@ private fun IntroHint() {
         )
         Spacer(Modifier.height(8.dp))
         Text("Pinch out or drag down to begin", color = Color.White.copy(alpha = 0.45f), fontSize = 13.sp)
+    }
+}
+
+/** Thin radial streaks flashed briefly on a big, fast jump — a lightweight warp-speed cue. */
+@Composable
+private fun WarpStreaks() {
+    val angles = remember { List(28) { Random.nextFloat() * 360f } }
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val c = Offset(size.width / 2f, size.height / 2f)
+        val maxLen = size.minDimension * 0.7f
+        angles.forEach { deg ->
+            val rad = Math.toRadians(deg.toDouble())
+            val start = Offset(c.x + (cos(rad) * maxLen * 0.15f).toFloat(), c.y + (sin(rad) * maxLen * 0.15f).toFloat())
+            val end = Offset(c.x + (cos(rad) * maxLen).toFloat(), c.y + (sin(rad) * maxLen).toFloat())
+            drawLine(Color.White.copy(alpha = 0.5f), start, end, strokeWidth = 1.4f)
+        }
     }
 }
 

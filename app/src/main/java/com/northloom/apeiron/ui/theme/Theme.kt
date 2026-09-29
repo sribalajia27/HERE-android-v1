@@ -1,4 +1,4 @@
-package com.example.here.ui.theme
+package com.northloom.apeiron.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme

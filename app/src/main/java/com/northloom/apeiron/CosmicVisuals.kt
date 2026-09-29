@@ -1,5 +1,6 @@
-package com.example.here
+package com.northloom.apeiron
 
+import com.northloom.apeiron.R
 import android.graphics.Paint
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
@@ -62,9 +63,9 @@ fun CosmicVisual(
             // To fix this, we respect physical 3D space:
             // 1. The LARGER environment (next) is drawn in the BACKGROUND.
             // 2. The SMALLER object (current) is drawn in the FOREGROUND.
-            
+
             // Background Layer (Incoming larger scale)
-            // Starts just slightly larger (1.15x) and settles to 1.0x, 
+            // Starts just slightly larger (1.15x) and settles to 1.0x,
             // enveloping the foreground smoothly.
             val inScale = 1.15f - (0.15f * fraction)
             scale(scale = inScale, pivot = center) {
@@ -126,42 +127,97 @@ private fun DrawScope.glow(center: Offset, radius: Float, color: Color, alpha: F
 
 private fun DrawScope.drawYou(c: Offset, short: Float, a: Float, time: Float, userAvatar: String?) {
     val r = short * 0.09f
-    // Vibrant multi-color stardust aura around You
-    glow(c, r * 3.0f, Color(0xFF4CC9F0), a * 0.35f)
-    glow(c, r * 2.0f, Color(0xFFFFD166), a * 0.3f)
-    glow(c, r * 1.5f, Color(0xFFF72585), a * 0.25f)
+
+    // One cohesive signature glow instead of three competing colors — depth without mud.
+    glow(c, r * 3.2f, Color(0xFF4CC9F0), a * 0.22f)
+    glow(c, r * 1.9f, Color(0xFF4CC9F0), a * 0.28f)
+
+    // A frosted-glass badge sits behind the avatar, like a premium app icon plate,
+    // instead of the emoji or silhouette floating bare on the scene.
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(Color.White.copy(alpha = a * 0.10f), Color.White.copy(alpha = a * 0.02f)),
+            center = c,
+            radius = r * 1.15f
+        ),
+        radius = r * 1.15f,
+        center = c
+    )
+    // Rim light: brightest at the upper-left, fading around the ring — the single detail
+    // that reads as "lit object" rather than "flat sticker."
+    drawCircle(
+        brush = Brush.sweepGradient(
+            colors = listOf(
+                Color.White.copy(alpha = a * 0.85f),
+                Color(0xFF4CC9F0).copy(alpha = a * 0.15f),
+                Color.Black.copy(alpha = a * 0.05f),
+                Color(0xFF4CC9F0).copy(alpha = a * 0.15f),
+                Color.White.copy(alpha = a * 0.85f)
+            ),
+            center = c
+        ),
+        radius = r * 1.15f,
+        center = c,
+        style = Stroke(width = 1.6f)
+    )
 
     if (userAvatar != null) {
-        // Draw the selected emoji avatar
+        // Soft drop shadow beneath the emoji for a touch of lift/depth, then the emoji itself.
         drawIntoCanvas { canvas ->
+            val shadowPaint = Paint().apply {
+                textSize = r * 2.15f
+                isAntiAlias = true
+                alpha = (a * 90).toInt()
+                textAlign = Paint.Align.CENTER
+            }
+            canvas.nativeCanvas.drawText(userAvatar, c.x, c.y + r * 0.75f + 5f, shadowPaint)
+
             val paint = Paint().apply {
-                textSize = r * 2.2f 
+                textSize = r * 2.15f
                 isAntiAlias = true
                 alpha = (a * 255).toInt()
                 textAlign = Paint.Align.CENTER
             }
-            // Offset Y slightly to center the emoji baseline vertically
             canvas.nativeCanvas.drawText(userAvatar, c.x, c.y + r * 0.75f, paint)
         }
     } else {
-        // Fallback generic body shape
-        val headRadius = r * 0.28f
-        drawCircle(Color.White.copy(alpha = a * 0.95f), radius = headRadius, center = Offset(c.x, c.y - r * 0.58f))
-        drawOval(
-            color = Color.White.copy(alpha = a * 0.95f),
-            topLeft = Offset(c.x - r * 0.48f, c.y - r * 0.22f),
-            size = Size(r * 0.96f, r * 1.2f)
+        // A soft, backlit silhouette — smooth curves and a gradient fill instead of a
+        // flat circle-and-oval "snowman" shape.
+        val figure = Path().apply {
+            val headR = r * 0.26f
+            val headC = Offset(c.x, c.y - r * 0.5f)
+            addOval(Rect(headC.x - headR, headC.y - headR, headC.x + headR, headC.y + headR))
+            moveTo(c.x - r * 0.34f, c.y + r * 0.62f)
+            cubicTo(
+                c.x - r * 0.4f, c.y + r * 0.05f,
+                c.x - r * 0.3f, c.y - r * 0.12f,
+                c.x, c.y - r * 0.14f
+            )
+            cubicTo(
+                c.x + r * 0.3f, c.y - r * 0.12f,
+                c.x + r * 0.4f, c.y + r * 0.05f,
+                c.x + r * 0.34f, c.y + r * 0.62f
+            )
+            close()
+        }
+        drawPath(
+            path = figure,
+            brush = Brush.verticalGradient(
+                colors = listOf(Color.White.copy(alpha = a * 0.95f), Color(0xFF9FB4C7).copy(alpha = a * 0.75f)),
+                startY = c.y - r,
+                endY = c.y + r
+            )
         )
+        drawPath(figure, color = Color(0xFF4CC9F0).copy(alpha = a * 0.35f), style = Stroke(width = 1.2f))
     }
 
-    drawCircle(Color(0xFF4CC9F0).copy(alpha = a * 0.6f), radius = r * 1.08f, center = c, style = Stroke(width = 2f))
-
-    // Twinkling stardust around You
-    for (i in 0..5) {
-        val angle = i * 1.047 + time * 0.5
-        val dist = r * (1.3f + 0.2f * sin(time + i))
+    // A calm, evenly-spaced halo instead of scattered stardust — fewer points, steadier motion.
+    for (i in 0..4) {
+        val angle = i * 1.257 + time * 0.3
+        val dist = r * 1.5f
         val pos = Offset(c.x + (cos(angle) * dist).toFloat(), c.y + (sin(angle) * dist).toFloat())
-        drawCircle(Color(0xFFFFD166).copy(alpha = a * 0.7f), radius = short * 0.002f, center = pos)
+        val twinkle = 0.55f + 0.45f * sin(time * 1.5f + i * 1.3f)
+        drawCircle(Color(0xFF4CC9F0).copy(alpha = a * 0.6f * twinkle), radius = short * 0.0016f, center = pos)
     }
 }
 
@@ -337,7 +393,7 @@ private fun DrawScope.drawMoon(c: Offset, short: Float, a: Float, moon: ImageBit
 private fun DrawScope.drawSun(c: Offset, short: Float, a: Float, time: Float) {
     val r = short * 0.16f
     val pulse = 1f + 0.05f * sin(time * 3f)
-    
+
     // Terrifying and majestic multi-tier solar corona & plasma glow
     glow(c, r * 4.2f * pulse, Color(0xFFD90429), a * 0.4f)
     glow(c, r * 3.2f * pulse, Color(0xFFFF6B00), a * 0.6f)
@@ -403,9 +459,9 @@ private fun DrawScope.drawSolarSystem(c: Offset, short: Float, a: Float, time: F
         size = Size(short * 1.0f, short * 0.8f)
     )
 
-    // AU Distance rings (1 AU, 5 AU, 10 AU, 20 AU, 30 AU) with distance labels
+    // AU distance rings (1 AU, 5 AU, 10 AU, 20 AU, 30 AU) — visual only, no captions;
+    // the exact distances are already one tap away in the scale readout.
     val ringRadii = listOf(0.10f, 0.20f, 0.30f, 0.40f, 0.48f)
-    val ringLabels = listOf("1 AU", "5 AU", "10 AU", "20 AU", "30 AU (Kuiper)")
     ringRadii.forEachIndexed { index, rFrac ->
         val r = short * rFrac
         drawCircle(
@@ -414,15 +470,6 @@ private fun DrawScope.drawSolarSystem(c: Offset, short: Float, a: Float, time: F
             center = c,
             style = Stroke(width = 1.2f)
         )
-        // Ring label
-        drawIntoCanvas { canvas ->
-            val paint = Paint().apply {
-                color = android.graphics.Color.argb((a * 150).toInt(), 255, 200, 100)
-                textSize = 16f
-                isAntiAlias = true
-            }
-            canvas.nativeCanvas.drawText(ringLabels[index], c.x + r + 8f, c.y - 4f, paint)
-        }
     }
 
     // Sun at center
@@ -437,21 +484,22 @@ private fun DrawScope.drawSolarSystem(c: Offset, short: Float, a: Float, time: F
         center = c
     )
 
-    // Planets & Probes with 3D drop-line vertical stems & labels
+    // Planets & Probes — small glowing markers with drop-line stems, no names painted on
+    // screen; tap the scale readout for what's what.
     val bodies = listOf(
-        Triple(0.10f, Color(0xFF94A3B8), "Mercury"),
-        Triple(0.15f, Color(0xFFFDE047), "Venus"),
-        Triple(0.20f, Color(0xFF38BDF8), "Earth"),
-        Triple(0.25f, Color(0xFFF87171), "Mars"),
-        Triple(0.32f, Color(0xFFFBBF24), "Jupiter"),
-        Triple(0.39f, Color(0xFFFDE68A), "Saturn"),
-        Triple(0.44f, Color(0xFF67E8F9), "Uranus"),
-        Triple(0.48f, Color(0xFF60A5FA), "Neptune"),
-        Triple(0.51f, Color(0xFFFFD166), "Voyager 1 (~162 AU)"),
-        Triple(0.46f, Color(0xFF4CC9F0), "Voyager 2 (~136 AU)")
+        0.10f to Color(0xFF94A3B8), // Mercury
+        0.15f to Color(0xFFFDE047), // Venus
+        0.20f to Color(0xFF38BDF8), // Earth
+        0.25f to Color(0xFFF87171), // Mars
+        0.32f to Color(0xFFFBBF24), // Jupiter
+        0.39f to Color(0xFFFDE68A), // Saturn
+        0.44f to Color(0xFF67E8F9), // Uranus
+        0.48f to Color(0xFF60A5FA), // Neptune
+        0.51f to Color(0xFFFFD166), // Voyager 1
+        0.46f to Color(0xFF4CC9F0)  // Voyager 2
     )
 
-    bodies.forEachIndexed { i, (frac, col, name) ->
+    bodies.forEachIndexed { i, (frac, col) ->
         val r = short * frac
         val angle = i * 0.75 + time * (0.35f - i * 0.02f)
         val pos = Offset(c.x + (cos(angle) * r).toFloat(), c.y + (sin(angle) * r).toFloat())
@@ -459,10 +507,10 @@ private fun DrawScope.drawSolarSystem(c: Offset, short: Float, a: Float, time: F
         val basePos = Offset(pos.x, pos.y + short * 0.07f)
         drawLine(col.copy(alpha = a * 0.35f), pos, basePos, strokeWidth = 1f)
 
-        // Add blinking effect for Voyager probes (indices 8 and 9)
+        // Voyager probes (indices 8 and 9) blink faintly to read as "still transmitting"
         val isVoyager = i >= 8
         val blinkAlpha = if (isVoyager) {
-            a * (0.3f + 0.7f * (sin(time * 8f + i) * 0.5f + 0.5f)) // Fast blink
+            a * (0.3f + 0.7f * (sin(time * 8f + i) * 0.5f + 0.5f))
         } else {
             a
         }
@@ -470,15 +518,6 @@ private fun DrawScope.drawSolarSystem(c: Offset, short: Float, a: Float, time: F
         glow(pos, 18f, col, if (isVoyager) blinkAlpha * 0.8f else a * 0.6f)
         drawCircle(Color.White.copy(alpha = blinkAlpha), radius = 4f, center = pos)
         drawCircle(col.copy(alpha = if (isVoyager) blinkAlpha else a * 0.85f), radius = 8f, center = pos, style = Stroke(width = 1.2f))
-
-        drawIntoCanvas { canvas ->
-            val paint = Paint().apply {
-                color = android.graphics.Color.argb((a * 230).toInt(), 230, 240, 255)
-                textSize = 18f
-                isAntiAlias = true
-            }
-            canvas.nativeCanvas.drawText(name, pos.x + 12f, pos.y - 4f, paint)
-        }
     }
 }
 
@@ -524,16 +563,6 @@ private fun DrawScope.drawGalaxy(c: Offset, short: Float, a: Float, points: List
     drawCircle(Color.White.copy(alpha = a), radius = 6f, center = sunPos)
     val pulse = (sin(time * 6f) * 0.5f + 0.5f)
     drawCircle(Color(0xFFFFD166).copy(alpha = a * (0.5f + pulse * 0.5f)), radius = 16f * (0.6f + pulse * 0.4f), center = sunPos, style = Stroke(width = 1.5f))
-
-    drawIntoCanvas { canvas ->
-        val paint = Paint().apply {
-            color = android.graphics.Color.argb((a * 255).toInt(), 255, 209, 102)
-            textSize = 28f
-            isAntiAlias = true
-            isFakeBoldText = true
-        }
-        canvas.nativeCanvas.drawText("📍 The Sun (You are here)", sunPos.x + 22f, sunPos.y + 8f, paint)
-    }
 }
 
 private fun DrawScope.drawLocalGroup(c: Offset, short: Float, a: Float, points: List<Offset>, time: Float) {
@@ -548,9 +577,8 @@ private fun DrawScope.drawLocalGroup(c: Offset, short: Float, a: Float, points: 
         size = Size(short * 1.0f, short * 0.8f)
     )
 
-    // Concentric distance shells / rings (2M ly, 4M ly, 6M ly, 8M ly) with distance labels
+    // Concentric distance shells (2M / 4M / 6M / 8M light-years) — visual rings only.
     val ringRadii = listOf(0.12f, 0.24f, 0.36f, 0.47f)
-    val ringLabels = listOf("2 million ly", "4 million ly", "6 million ly", "8 million ly")
     ringRadii.forEachIndexed { index, rFrac ->
         val r = short * rFrac
         drawOval(
@@ -559,50 +587,33 @@ private fun DrawScope.drawLocalGroup(c: Offset, short: Float, a: Float, points: 
             size = Size(r * 2f, r * 0.7f),
             style = Stroke(width = 1.2f)
         )
-        // Ring label
-        drawIntoCanvas { canvas ->
-            val paint = Paint().apply {
-                color = android.graphics.Color.argb((a * 150).toInt(), 120, 180, 220)
-                textSize = 16f
-                isAntiAlias = true
-            }
-            canvas.nativeCanvas.drawText(ringLabels[index], c.x + r - 50f, c.y - r * 0.25f + index * 12f, paint)
-        }
     }
 
-    // Milky Way & Andromeda sub-clusters with 3D drop-line vertical stems
+    // Milky Way & Andromeda sub-clusters, marked with small glowing nodes — no names
+    // painted over the scene; the sizeFact readout already names the neighborhood.
     val mwPos = c + Offset(0f, short * 0.04f)
     val m31Pos = c + Offset(short * 0.16f, -short * 0.14f)
     val m33Pos = c + Offset(short * 0.23f, -short * 0.06f)
 
     val galaxies = listOf(
-        Triple(mwPos, Color(0xFF4CC9F0), "Milky Way"),
-        Triple(m31Pos, Color(0xFFFFD166), "M31 (Andromeda)"),
-        Triple(m33Pos, Color(0xFFF72585), "M33 (Triangulum)"),
-        Triple(mwPos + Offset(-short * 0.12f, short * 0.08f), Color(0xFF4CC9F0), "LMC / SMC"),
-        Triple(c + Offset(-short * 0.26f, short * 0.12f), Color(0xFF67E8F9), "NGC 300"),
-        Triple(c + Offset(short * 0.29f, short * 0.16f), Color(0xFF60A5FA), "IC 1613"),
-        Triple(c + Offset(-0.08f * short, -0.22f * short), Color(0xFFF72585), "IC 10"),
-        Triple(c + Offset(0.08f * short, 0.25f * short), Color(0xFFFFD166), "NGC 3109"),
-        Triple(c + Offset(-0.32f * short, -0.15f * short), Color(0xFF4CC9F0), "WLM")
+        mwPos to Color(0xFF4CC9F0),
+        m31Pos to Color(0xFFFFD166),
+        m33Pos to Color(0xFFF72585),
+        (mwPos + Offset(-short * 0.12f, short * 0.08f)) to Color(0xFF4CC9F0),
+        (c + Offset(-short * 0.26f, short * 0.12f)) to Color(0xFF67E8F9),
+        (c + Offset(short * 0.29f, short * 0.16f)) to Color(0xFF60A5FA),
+        (c + Offset(-0.08f * short, -0.22f * short)) to Color(0xFFF72585),
+        (c + Offset(0.08f * short, 0.25f * short)) to Color(0xFFFFD166),
+        (c + Offset(-0.32f * short, -0.15f * short)) to Color(0xFF4CC9F0)
     )
 
-    galaxies.forEach { (pos, col, name) ->
+    galaxies.forEach { (pos, col) ->
         val basePos = Offset(pos.x, pos.y + short * 0.09f)
         drawLine(Color(0xFF4CC9F0).copy(alpha = a * 0.3f), pos, basePos, strokeWidth = 1f)
-        
+
         glow(pos, 18f, col, a * 0.6f)
         drawCircle(Color.White.copy(alpha = a), radius = 4f, center = pos)
         drawCircle(col.copy(alpha = a * 0.85f), radius = 8f, center = pos, style = Stroke(width = 1.2f))
-
-        drawIntoCanvas { canvas ->
-            val paint = Paint().apply {
-                color = android.graphics.Color.argb((a * 230).toInt(), 220, 235, 255)
-                textSize = 20f
-                isAntiAlias = true
-            }
-            canvas.nativeCanvas.drawText(name, pos.x + 12f, pos.y - 4f, paint)
-        }
     }
 
     // Use points to scatter background dwarf galaxies faintly
@@ -677,7 +688,7 @@ private fun DrawScope.drawObservableUniverse(c: Offset, short: Float, a: Float, 
         val r = boundary * (p.x * 0.95f) // slightly inset from the true edge
         val angle = p.y * 2 * Math.PI
         val pos = Offset(c.x + (cos(angle) * r).toFloat(), c.y + (sin(angle) * r).toFloat())
-        
+
         val hueSelector = (p.x * 10).toInt() % 4
         val galaxyColor = when (hueSelector) {
             0 -> Color(0xFF4CC9F0)

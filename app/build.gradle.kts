@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.here"
+    namespace = "com.northloom.apeiron"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.here"
+        applicationId = "com.northloom.apeiron"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
@@ -48,4 +48,6 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
+    implementation("androidx.media3:media3-common:1.3.1")
 }
