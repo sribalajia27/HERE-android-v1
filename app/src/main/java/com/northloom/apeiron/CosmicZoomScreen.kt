@@ -61,7 +61,7 @@ import kotlin.math.sin
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 
-private enum class Phase { INTRO, JOURNEY, ARRIVED, BEYOND, EARTH_FOUND, RETURNING }
+private enum class Phase { INTRO, JOURNEY, ARRIVED, EARTH_FOUND, RETURNING }
 
 // --- TUNING KNOBS ---
 private const val DRAG_SENSITIVITY = 1f / 280f
@@ -119,8 +119,7 @@ fun CosmicZoomScreen(
         val targetMultiplier = when (phase) {
             Phase.INTRO -> 0.5f
             Phase.JOURNEY -> 1.0f
-            Phase.ARRIVED -> 0.15f
-            Phase.BEYOND -> 0.9f
+            Phase.ARRIVED -> 0.9f
             Phase.RETURNING -> 0.8f
             Phase.EARTH_FOUND -> 0.6f
         }
@@ -247,9 +246,9 @@ fun CosmicZoomScreen(
         }
     }
 
-    // Automatically exit ARRIVED or BEYOND if the user manually navigates back in
+    // Automatically exit ARRIVED if the user manually navigates back in
     LaunchedEffect(zoomLevel) {
-        if (zoomLevel < 8.5f && (phase == Phase.ARRIVED || phase == Phase.BEYOND)) {
+        if (zoomLevel < 9.5f && phase == Phase.ARRIVED) {
             phase = Phase.JOURNEY
         }
     }
@@ -278,7 +277,7 @@ fun CosmicZoomScreen(
 
     val warmth = when (phase) {
         Phase.EARTH_FOUND, Phase.RETURNING -> 1f
-        Phase.BEYOND -> 0.55f
+        Phase.ARRIVED -> 0.55f
         else -> 0f
     }
     val bgColor by animateColorAsState(
@@ -388,7 +387,7 @@ fun CosmicZoomScreen(
             }
         }
 
-        if (phase == Phase.JOURNEY || phase == Phase.ARRIVED || phase == Phase.BEYOND || phase == Phase.RETURNING || phase == Phase.EARTH_FOUND) {
+        if (phase == Phase.JOURNEY || phase == Phase.ARRIVED || phase == Phase.RETURNING || phase == Phase.EARTH_FOUND) {
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
@@ -431,7 +430,7 @@ fun CosmicZoomScreen(
         )
 
         // --- QUIET ZONE: all narrative text lives in a fixed top band with a scrim ---
-        if (phase == Phase.JOURNEY || phase == Phase.ARRIVED || phase == Phase.BEYOND || phase == Phase.RETURNING || phase == Phase.EARTH_FOUND) {
+        if (phase == Phase.JOURNEY || phase == Phase.ARRIVED || phase == Phase.RETURNING || phase == Phase.EARTH_FOUND) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -489,7 +488,7 @@ fun CosmicZoomScreen(
             IntroHint(userName)
         }
 
-        // Top Narrative Text for ARRIVED
+        // Top Narrative Text for ARRIVED (Beyond the Observable Universe)
         AnimatedVisibility(
             visible = phase == Phase.ARRIVED,
             enter = fadeIn(tween(1000)),
@@ -501,58 +500,6 @@ fun CosmicZoomScreen(
                     performHaptic(HapticFeedbackType.TextHandleMove)
                     showFactsDialog = true
                 }
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    "The Observable Universe",
-                    color = Color.White,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Light,
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    "~2 trillion galaxies (conservative estimate).",
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 14.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-                Text(
-                    "ℹ Tap for deep cosmic facts",
-                    color = Color(0xFF4CC9F0).copy(alpha = 0.75f),
-                    fontSize = 11.sp,
-                    modifier = Modifier.padding(top = 6.dp)
-                )
-            }
-        }
-
-        // Bottom Action Button for ARRIVED
-        AnimatedVisibility(
-            visible = phase == Phase.ARRIVED,
-            enter = fadeIn(tween(1200)),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 96.dp)
-        ) {
-            Button(
-                onClick = {
-                    playClickSound()
-                    performHaptic(HapticFeedbackType.LongPress)
-                    phase = Phase.BEYOND
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black)
-            ) {
-                Text("Peer Beyond the Veil ➔", fontSize = 12.sp)
-            }
-        }
-
-        // Top Narrative Text for BEYOND
-        AnimatedVisibility(
-            visible = phase == Phase.BEYOND,
-            enter = fadeIn(tween(1000)),
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 76.dp, start = 24.dp, end = 24.dp)
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
@@ -570,13 +517,19 @@ fun CosmicZoomScreen(
                     lineHeight = 18.sp,
                     modifier = Modifier.padding(top = 4.dp)
                 )
+                Text(
+                    "ℹ Tap for deep cosmic facts",
+                    color = Color(0xFF4CC9F0).copy(alpha = 0.75f),
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
             }
         }
 
-        // Bottom Action Button for BEYOND
+        // Bottom Action Button for ARRIVED (Journey Back Home)
         AnimatedVisibility(
-            visible = phase == Phase.BEYOND,
-            enter = fadeIn(tween(1000)),
+            visible = phase == Phase.ARRIVED,
+            enter = fadeIn(tween(1200)),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 96.dp)
@@ -667,8 +620,8 @@ private fun EarthFoundSequence(onRestart: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
-                .align(Alignment.Center)
-                .padding(horizontal = 40.dp),
+                .align(Alignment.TopCenter)
+                .padding(top = 80.dp, start = 28.dp, end = 28.dp),
             contentAlignment = Alignment.Center
         ) {
             AnimatedVisibility(
@@ -676,14 +629,24 @@ private fun EarthFoundSequence(onRestart: () -> Unit) {
                 enter = fadeIn(tween(1400)),
                 exit = fadeOut(tween(1000))
             ) {
-                Text(
-                    "Somewhere on this tiny world,\nyou are living right now.",
-                    color = Color.White.copy(alpha = 0.95f),
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Light,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 26.sp
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "SOMEWHERE ON THIS TINY WORLD",
+                        color = Color(0xFF4CC9F0).copy(alpha = 0.9f),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 2.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "You are living right now.",
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Light,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
 
             AnimatedVisibility(
@@ -691,14 +654,24 @@ private fun EarthFoundSequence(onRestart: () -> Unit) {
                 enter = fadeIn(tween(1400)),
                 exit = fadeOut(tween(1000))
             ) {
-                Text(
-                    "Every story you've ever known\nhappened here.",
-                    color = Color.White.copy(alpha = 0.95f),
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Light,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 26.sp
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "THE ARCHIVE",
+                        color = Color(0xFFFFD166).copy(alpha = 0.9f),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 2.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Every story you've ever known happened here.",
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Light,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
 
             AnimatedVisibility(
@@ -706,14 +679,25 @@ private fun EarthFoundSequence(onRestart: () -> Unit) {
                 enter = fadeIn(tween(1600)),
                 exit = fadeOut(tween(1200))
             ) {
-                Text(
-                    "So while you're here,\nenjoy every bit of it.",
-                    color = Color(0xFF4CC9F0).copy(alpha = 0.95f),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Light,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 26.sp
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "THE JOURNEY",
+                        color = Color(0xFF4CC9F0).copy(alpha = 0.9f),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 2.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "So while you're here,\nenjoy every bit of it.",
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Light,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 28.sp
+                    )
+                }
             }
         }
 
@@ -727,9 +711,10 @@ private fun EarthFoundSequence(onRestart: () -> Unit) {
             Button(
                 onClick = onRestart,
                 colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
-                shape = RoundedCornerShape(14.dp)
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.height(50.dp)
             ) {
-                Text("Begin Again ➔", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Text("Begin Again ➔", fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
         }
     }
@@ -803,13 +788,17 @@ private fun CosmicFactsDialog(
                     textAlign = TextAlign.Center
                 )
 
+                val displayFacts = remember(level.index) {
+                    level.facts.shuffled().take(4)
+                }
+
                 LazyColumn(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    items(level.facts.size) { index ->
+                    items(displayFacts.size) { index ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -823,7 +812,7 @@ private fun CosmicFactsDialog(
                                 fontSize = 14.sp
                             )
                             Text(
-                                text = level.facts[index],
+                                text = displayFacts[index],
                                 color = Color.White.copy(alpha = 0.85f),
                                 fontSize = 14.sp,
                                 lineHeight = 20.sp,
@@ -859,7 +848,7 @@ private fun IntroHint(userName: String?) {
         ),
         label = "bob"
     )
-    val greeting = if (!userName.isNullOrBlank()) "${userName.uppercase()} IS HERE" else "YOU ARE HERE"
+    val greeting = if (!userName.isNullOrBlank()) "${userName.uppercase()}" else "YOU ARE HERE"
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(greeting, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Light)
         Spacer(Modifier.height(56.dp))

@@ -14,6 +14,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // Load rich cosmic facts from JSON assets into cache
+        getCosmicLevels(this)
+
         audioController = AudioController(this)
 
         val prefs = getSharedPreferences("ApeironPrefs", MODE_PRIVATE)

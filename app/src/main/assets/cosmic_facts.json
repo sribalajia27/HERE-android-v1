@@ -1,0 +1,192 @@
+{
+  "levels": [
+    {
+      "index": 0,
+      "title": "You",
+      "subtitle": "The center of your entire universe.",
+      "exponent": 0,
+      "sizeFact": "1.7 meters of stardust",
+      "facts": [
+        "Atom Count: Your body is composed of approximately 7 octillion atoms (mostly hydrogen, oxygen, carbon, and nitrogen).",
+        "Stellar Origin: Every heavier atom in your body (iron, calcium, phosphorus) was forged inside ancient dying stars billions of years ago.",
+        "Bio-Electricity: Your nervous system generates about 20 watts of electrical power—enough to dimly power a small LED light bulb.",
+        "Cellular Turnover: Every day, your body produces around 300 billion new cells to replace dead or damaged tissue.",
+        "Solar Neutrinos: Trillions of invisible neutrinos streaming from the Sun pass through your body every second without stopping.",
+        "DNA Stretch: If you uncoiled all the DNA inside your body's cells, it would stretch from the Earth to Pluto and back.",
+        "Thermal Glow: Your body radiates heat in the infrared spectrum; if our eyes could see infrared, you would glow in total darkness.",
+        "Interstellar Water: Over 60% of your body is water, much of which originated in deep interstellar molecular clouds before the solar system formed."
+      ]
+    },
+    {
+      "index": 1,
+      "title": "Your World",
+      "subtitle": "Your entire existence, cradled in blue.",
+      "exponent": 4,
+      "sizeFact": "Your daily horizon",
+      facts": [
+        "Immediate Horizon: At 10 kilometers across, this represents your daily physical footprint and immediate atmospheric sphere.",
+        "Troposphere: Within this scale lies the troposphere, containing 75% of Earth's atmospheric mass and virtually all weather systems.",
+        "Human Perspective: Throughout 99% of human history, an individual's entire known world fit entirely within this single scale stop.",
+        "Sound Barrier: Sound travels across this 10km horizon in about 30 seconds under normal atmospheric conditions.",
+        "Visual Curvature: From the top of this scale, the subtle curvature of the Earth begins to become faintly perceptible.",
+        "Atmospheric Pressure: Air pressure drops by half roughly every 5.5 kilometers you ascend within this boundary."
+      ]
+    },
+    {
+      "index": 2,
+      "title": "Earth",
+      subtitle = "A pale blue speck suspended in a sunbeam.",
+      "exponent": 7,
+      "sizeFact": "Sunlight takes 8 min 20 s to arrive",
+      facts": [
+        "Orbital Velocity: Earth races around the Sun at an astonishing 107,000 km/h while spinning at 1,670 km/h at the equator.",
+        "Water vs Mass: 71% of Earth's surface is covered in water, yet water accounts for less than 0.02% of Earth's total planetary mass.",
+        "Protective Shield: Earth's molten iron outer core generates a powerful magnetosphere that deflects lethal solar wind and cosmic radiation.",
+        "Atmospheric Thinness: If Earth were the size of a basketball, its entire life-sustaining atmosphere would be thinner than a single sheet of paper.",
+        "Continental Drift: Earth's continents drift apart at about 2.5 centimeters per year—roughly the same speed as human fingernails grow.",
+        "Oblique Tilt: Earth's 23.5-degree axial tilt creates our changing seasons, stabilized permanently by our large Moon.",
+        "Ancient Atmosphere: Earth's early atmosphere had zero oxygen; it was transformed 2.4 billion years ago by photosynthetic microbes (the Great Oxidation Event).",
+        "Magnetic Poles: Earth's magnetic north and south poles wander continuously and have flipped entirely hundreds of times in geological history."
+      ]
+    },
+    {
+      "index": 3,
+      "title": "The Moon",
+      subtitle = "Our silent neighbor, watching over our brief history.",
+      "exponent": 9,
+      "sizeFact": "384,400 km away · Light takes 1.3 s",
+      facts": [
+        "Tidal Locking: The Moon is tidally locked to Earth, rotating on its axis in the exact same time it takes to orbit Earth, keeping one face permanently hidden.",
+        "Drifting Away: Due to tidal friction, the Moon is slowly spiraling away from Earth at a rate of 3.8 centimeters every single year.",
+        "Impact Archive: The Moon has no atmosphere or tectonic activity, preserving impact craters from asteroid strikes spanning 4.5 billion years.",
+        "Stabilizing Axis: The Moon's gravitational pull stabilizes Earth's axial tilt, preventing extreme, chaotic climate swings.",
+        "Footprints Forever: Neil Armstrong's footprints on the lunar surface will remain undisturbed for millions of years due to the absence of wind or rain.",
+        "Moonquakes: Seismometers left by Apollo astronauts recorded moonquakes caused by Earth's gravitational tidal stress deep inside the lunar interior.",
+        "Extreme Temperatures: Lunar surface temperatures swing wildly from 127°C in direct sunlight to -173°C in permanent polar shadows.",
+        "Giant Impact: The Moon was born 4.5 billion years ago when a Mars-sized protoplanet named Theia collided with the young Earth."
+      ]
+    },
+    {
+      "index": 4,
+      "title": "The Sun",
+      subtitle = "Our raging nuclear furnace fueling every breath you take.",
+      "exponent": 9,
+      "sizeFact": "1.39 million km across",
+      facts": [
+        "Solar Mass: The Sun accounts for 99.86% of all physical mass in the entire solar system.",
+        "Nuclear Fusion: Every second, the core fuses 600 million tons of hydrogen into helium, converting 4 million tons of matter directly into pure radiant energy.",
+        "Blazing Core: Temperatures at the solar core reach a staggering 15 million°C, while the visible surface (photosphere) is a relatively cool 5,500°C.",
+        "Light Travel: A photon generated at the solar core takes upwards of 100,000 years to reach the surface, but only 8 minutes to travel from the surface to Earth.",
+        "Sunspot Cycles: Every 11 years, the Sun undergoes magnetic polarity reversals, triggering intense solar flares and auroral storms on Earth.",
+        "Stellar Classification: The Sun is a yellow dwarf star (G-type main-sequence star) currently halfway through its stable 10-billion-year lifespan.",
+        "Gravity Anchor: Solar gravity reaches far beyond Pluto, holding distant comets in the icy Oort Cloud.",
+        "Sound Waves: The Sun hums with standing acoustic pressure waves ringing like a giant bell, vibrating through its plasma interior."
+      ]
+    },
+    {
+      "index": 5,
+      "title": "Our Solar System",
+      subtitle = "8 worlds dancing in the void. V1 & V2 blink back from the dark.",
+      "exponent": 13,
+      "sizeFact": "Voyager 1 & 2: 23 light-hours deep in interstellar space",
+      facts": [
+        "Oort Cloud: The solar system's gravitational boundary extends outward into the Oort Cloud, nearly 2 light-years (halfway to Proxima Centauri).",
+        "Voyager Legacy: Launched in 1977, Voyager 1 is humanity's most distant emissary, transmitting data from beyond the heliosphere over 24 billion km away.",
+        "Orbital Plane: All eight planets orbit the Sun in nearly the exact same flat plane, a relic of the spinning protoplanetary disk formed 4.6 billion years ago.",
+        "Gas Giants: Jupiter and Saturn contain more than 90% of the planetary mass orbiting the Sun.",
+        "Kuiper Belt: Beyond Neptune lies a vast ring of icy primordial debris, home to dwarf planets like Pluto and Haumea.",
+        "Asteroid Belt: Located between Mars and Jupiter, the asteroid belt contains millions of rocky bodies holding clues to planet formation.",
+        "Heliosphere: The Sun creates a giant magnetic bubble called the heliosphere that shields the inner planets from galactic cosmic rays.",
+        "Planetary Migration: Evidence suggests giant planets like Jupiter and Saturn shifted dramatically in their orbits during the solar system's chaotic youth."
+      ]
+    },
+    {
+      "index": 6,
+      "title": "The Milky Way",
+      subtitle = "400 billion stars. You are invisible from here.",
+      "exponent": 21,
+      sizeFact = "100,000 light-years across",
+      facts": [
+        "Stellar Empire: The Milky Way contains between 100 to 400 billion stars and at least 100 billion planets.",
+        "Supermassive Heart: At the galactic center lies Sagittarius A*, a supermassive black hole weighing 4 million times the mass of our Sun.",
+        "Galactic Year: Our solar system takes roughly 230 million years to complete one single orbit around the galactic center (a 'galactic year').",
+        "Dark Matter Halo: Over 90% of the Milky Way's mass is invisible dark matter holding the spinning disc together against centrifugal disruption.",
+        "Stellar Cannibalism: The Milky Way has absorbed dozens of smaller satellite dwarf galaxies over its 13.6-billion-year history.",
+        "Spiral Structure: Our galaxy is a barred spiral with four major luminous arms where active star formation constantly takes place.",
+        "High-Speed Travel: The solar system orbits the galactic center at a blistering speed of 828,000 km/h.",
+        "X-Ray Bubbles: Colossal gamma-ray and X-ray bubbles extend thousands of light-years above and below the galactic plane from past black hole outbursts."
+      ]
+    },
+    {
+      "index": 7,
+      "title": "Our Galactic Neighborhood",
+      subtitle = "A tiny cluster of island universes drifting in nothingness.",
+      "exponent": 23,
+      sizeFact = "10 million light-years across",
+      facts": [
+        "Local Group: Our galaxy is part of the Local Group—a gravitational club of over 80 galaxies spanning 10 million light-years.",
+        "Andromeda Collision: The Milky Way and the neighboring Andromeda Galaxy are hurtling toward each other at 110 km/s, scheduled to merge in ~4.5 billion years.",
+        "Dwarf Companions: The Local Group is dominated by giant spirals (Milky Way and Andromeda) accompanied by dozens of tiny dwarf spheroidal galaxies.",
+        "Triangulum Galaxy: M33 is the third-largest member of the Local Group, spinning majestically with 40 billion stars.",
+        "Gravitational Bound: All galaxies in the Local Group are bound together by mutual gravity, isolated from other distant clusters by vast cosmic voids.",
+        "Dark Matter Dominance: Visible stars account for less than 5% of the total mass of the Local Group; the rest is invisible dark matter."
+      ]
+    },
+    {
+      "index": 8,
+      "title": "The Laniakea Supercluster",
+      subtitle = "Rivers of 100,000 galaxies flowing together toward a massive gravitational basin.",
+      "exponent": 24,
+      sizeFact = "520 million light-years across · Home to the Great Attractor",
+      facts": [
+        "Laniakea Meaning: Named 'Immeasurable Heaven' in Hawaiian, this colossal supercluster defines our home galaxy cluster's broader basin of attraction.",
+        "The Great Attractor: All 100,000 galaxies in Laniakea—including our own—are inexorably sliding along gravitational streamlines toward a titanic gravitational anomaly millions of light-years away.",
+        "Supercluster Boundaries: Laniakea spans over 520 million light-years, bordering adjacent superclusters like Perseus-Pisces and Coma.",
+        "Cosmic Flow: Galaxies within Laniakea do not move randomly; they follow massive gravitational rivers streaming through the cosmos.",
+        "Mapping the Void: Laniakea was mapped using peculiar velocities—measuring how galaxy speeds deviate from the smooth expansion of the universe."
+      ]
+    },
+    {
+      "index": 9,
+      "title": "The Cosmic Web",
+      subtitle = "Galaxies strung together like fragile glowing webs.",
+      "exponent": 25,
+      sizeFact = "1 billion light-years across",
+      facts": [
+        "Cosmic Neural Network: Galaxies are distributed in vast intersecting filaments and clusters, resembling a colossal neural network across space.",
+        "Cosmic Voids: Spanning between these glowing filaments are immense dark voids—empty regions hundreds of millions of light-years across devoid of galaxies.",
+        "Dark Matter Scaffolding: The visible glowing web of galaxies is merely the frosting on an invisible scaffolding of primordial dark matter.",
+        "Filament Intersections: Where cosmic filaments intersect lie rich superclusters containing thousands of galaxies bound together.",
+        "Acoustic Relics: The colossal honeycomb pattern of the cosmic web was shaped by sound waves echoing through the primordial plasma of the early universe."
+      ]
+    },
+    {
+      "index": 10,
+      "title": "The Observable Universe",
+      subtitle = "~2 trillion galaxies (conservative estimate). Beyond lies the infinite unknown.",
+      "exponent": 27,
+      sizeFact = "We only see what light has reached. Beyond, realms exist in eternal shadow.",
+      facts": [
+        "Galaxy Count: Deep field observations by Hubble and James Webb estimate there are over 2 trillion galaxies in the observable universe.",
+        "Cosmic Microwave Background: The oldest light in existence—a relic glow from the Big Bang 13.8 billion years ago—blankets every inch of the sky.",
+        "Superluminal Expansion: Space itself is expanding faster than the speed of light, meaning the most distant galaxies are permanently receding beyond our horizon.",
+        "Observable Diameter: The observable universe is roughly 93 billion light-years across despite being only 13.8 billion years old due to space expansion.",
+        "Isotropic Sky: Looking in any direction across the observable universe reveals roughly the same average distribution of galaxies and background radiation.",
+        "Stellar Count: There are more stars in the observable universe than grains of sand on all of Earth's beaches combined (estimated at 10²² stars)."
+      ]
+    },
+    {
+      "index": 11,
+      "title": "Beyond the Observable Universe",
+      subtitle = "Where light has never touched, and space stretches into the infinite.",
+      "exponent": 29,
+      sizeFact = "An endless tapestry beyond our cosmic light horizon",
+      facts": [
+        "The Light Horizon: Because light has only had 13.8 billion years to travel to us, everything beyond 46.5 billion light-years remains forever cloaked in darkness—not because nothing is there, but because light hasn't had time to arrive.",
+        "Infinite Inflation: Modern cosmological theory indicates space beyond our horizon does not end; it stretches infinitely, potentially forming an endless multiverse of disconnected pocket universes.",
+        "Causality Barrier: Space itself expands faster than light outside our horizon, creating an absolute cosmic curtain that permanently isolates our universe from whatever lies beyond.",
+        "Multiverse Possibilities: In an infinite expanding space, identical pocket universes and alternative histories repeat infinitely across the quantum landscape."
+      ]
+    }
+  ]
+}
