@@ -100,6 +100,7 @@ fun CosmicZoomScreen(
     var gestureStartLevel by remember { mutableIntStateOf(0) }
     var warpFlash by remember { mutableStateOf(false) }
     var showFactsDialog by remember { mutableStateOf(false) }
+    val factBags = remember { mutableMapOf<Int, FactShuffleBag>() }
 
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
@@ -591,7 +592,8 @@ fun CosmicZoomScreen(
         }
 
         if (showFactsDialog) {
-            CosmicFactsDialog(level = nearestLevel, onDismiss = { showFactsDialog = false })
+            val currentBag = factBags.getOrPut(nearestLevel.index) { FactShuffleBag(nearestLevel.facts) }
+            CosmicFactsDialog(level = nearestLevel, factBag = currentBag, onDismiss = { showFactsDialog = false })
         }
     }
 }
@@ -723,6 +725,7 @@ private fun EarthFoundSequence(onRestart: () -> Unit) {
 @Composable
 private fun CosmicFactsDialog(
     level: CosmicLevel,
+    factBag: FactShuffleBag,
     onDismiss: () -> Unit
 ) {
     Box(
@@ -789,7 +792,7 @@ private fun CosmicFactsDialog(
                 )
 
                 val displayFacts = remember(level.index) {
-                    level.facts.shuffled().take(4)
+                    factBag.getNextBatch(4)
                 }
 
                 LazyColumn(

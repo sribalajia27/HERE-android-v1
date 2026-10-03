@@ -18,6 +18,38 @@ data class CosmicLevel(
     val facts: List<String>
 )
 
+class FactShuffleBag(private val facts: List<String>) {
+    private var bag = mutableListOf<String>()
+    private var lastShownFact: String? = null
+
+    fun getNextBatch(count: Int = 4): List<String> {
+        if (facts.isEmpty()) return emptyList()
+        val result = mutableListOf<String>()
+        for (i in 0 until count) {
+            if (bag.isEmpty()) {
+                refillBag()
+            }
+            val nextFact = bag.removeAt(0)
+            result.add(nextFact)
+            lastShownFact = nextFact
+        }
+        return result
+    }
+
+    private fun refillBag() {
+        val shuffled = facts.toMutableList()
+        shuffled.shuffle()
+        if (shuffled.size > 1 && lastShownFact != null && shuffled.first() == lastShownFact) {
+            val swapIndex = (1 until shuffled.size).random()
+            val temp = shuffled[0]
+            shuffled[0] = shuffled[swapIndex]
+            shuffled[swapIndex] = temp
+        }
+        bag.clear()
+        bag.addAll(shuffled)
+    }
+}
+
 private var cachedLevels: List<CosmicLevel>? = null
 
 fun getCosmicLevels(context: Context? = null): List<CosmicLevel> {
