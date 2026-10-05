@@ -130,11 +130,13 @@ val COSMIC_LEVELS_FALLBACK = listOf(
         index = 3,
         title = "The Moon",
         subtitle = "Our silent neighbor, watching over our brief history.",
-        exponent = 9,
+        exponent = 8,
         sizeFact = "384,400 km away · Light takes 1.3 s",
         facts = listOf(
             "Tidal Locking: Keeps one face permanently facing Earth.",
-            "Drifting Away: Spirals away from Earth by 3.8 cm every year."
+            "Drifting Away: Spirals away from Earth by 3.8 cm every year.",
+            "Airless Vacuum: No atmosphere exists, creating pitch-black skies even in direct sunlight.",
+            "Lunar Maria: Dark basaltic plains formed by ancient volcanic lava flows."
         )
     ),
     CosmicLevel(
